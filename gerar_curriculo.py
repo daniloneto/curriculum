@@ -3,6 +3,7 @@ import sys
 import glob
 import json
 import subprocess
+from templates import TemplateManager
 
 # Função para listar idiomas disponíveis
 def get_available_languages():
@@ -47,6 +48,10 @@ def exibir_menu():
         print("Nenhum arquivo de idioma encontrado. Verifique se existem arquivos curriculo_XX.json na pasta.")
         return None
     
+    # Obter templates disponíveis
+    template_manager = TemplateManager()
+    templates = template_manager.list_templates()
+    
     # Exibir opções
     print("\nIdiomas disponíveis:")
     for i, (code, lang) in enumerate(languages.items(), 1):
@@ -70,10 +75,47 @@ def exibir_menu():
         
         # Obter código do idioma escolhido
         lang_code = list(languages.keys())[lang_choice - 1]
+          # Escolher template (caso exista mais de um para o formato selecionado)
+        chosen_format = 'pdf' if format_choice == 'a' else 'docx'
+        available_templates = [t for t in templates if t.startswith(chosen_format)]
+        
+        # Se não houver templates disponíveis para o formato, usar o padrão
+        if not available_templates:
+            return {
+                'language': lang_code,
+                'format': chosen_format
+            }
+        
+        # Se houver apenas um template, usá-lo como padrão
+        if len(available_templates) == 1:
+            return {
+                'language': lang_code,
+                'format': chosen_format,
+                'template': available_templates[0]
+            }
+          # Se houver múltiplos templates, permitir escolha
+        print("\nTemplates disponíveis:")
+        for i, template in enumerate(available_templates, 1):
+            # Formatar nome do template para exibição
+            display_name = template
+            if template == chosen_format:
+                display_name = f"Padrão ({template})"
+            elif template.startswith(chosen_format + "_"):
+                # Remover prefixo (ex: pdf_moderno -> Moderno)
+                style_name = template.replace(chosen_format + "_", "")
+                display_name = style_name.capitalize()
+            
+            print(f"{i}. {display_name}")
+        
+        template_choice = int(input("\nEscolha o número do template: "))
+        if template_choice < 1 or template_choice > len(available_templates):
+            print("Escolha de template inválida.")
+            return None
         
         return {
             'language': lang_code,
-            'format': 'pdf' if format_choice == 'a' else 'docx'
+            'format': chosen_format,
+            'template': available_templates[template_choice - 1]
         }
         
     except ValueError:
@@ -88,6 +130,11 @@ def gerar_curriculo(opcoes):
     
     # Executar o script com o idioma escolhido
     cmd = [sys.executable, script, opcoes['language']]
+    
+    # Se houver template especificado, passar como argumento adicional
+    if 'template' in opcoes:
+        cmd.append('--template')
+        cmd.append(opcoes['template'])
     
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)

@@ -1,7 +1,7 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem, Table, TableStyle, PageBreak, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem, Table, TableStyle, PageBreak
 from reportlab.lib.units import inch, cm
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
@@ -10,6 +10,56 @@ import os
 import json
 import sys
 import glob
+import argparse
+from templates import TemplateManager
+from reportlab.pdfbase.ttfonts import TTFont
+import os
+import json
+import sys
+import glob
+from templates import TemplateManager
+
+# Função genérica para obter valores do JSON de maneira padronizada
+def get_field(data, primary_key, fallback_key=None):
+    if primary_key in data:
+        return data[primary_key]
+    elif fallback_key and fallback_key in data:
+        return data[fallback_key]
+    return None
+
+# Função genérica para obter título de seção
+def get_section_title(section_data, title_keys=['titulo', 'title', 'titre', 'titel']):
+    for key in title_keys:
+        if key in section_data:
+            return section_data[key]
+    return "N/A"  # Fallback
+
+# Função genérica para obter conteúdo de seção
+def get_section_content(section_data, content_keys=['conteudo', 'content', 'contenido', 'inhalt']):
+    for key in content_keys:
+        if key in section_data:
+            return section_data[key]
+    return ""  # Fallback
+
+# Função genérica para obter lista de itens
+def get_section_list(section_data, list_keys=['lista', 'list', 'liste', 'lista']):
+    for key in list_keys:
+        if key in section_data:
+            return section_data[key]
+    return []  # Fallback
+
+# Função genérica para obter lista de empregos/experiências
+def get_jobs(section_data, jobs_keys=['empregos', 'jobs', 'empleos', 'emplois']):
+    for key in jobs_keys:
+        if key in section_data:
+            return section_data[key]
+    return []  # Fallback
+
+# Configurar os argumentos de linha de comando
+parser = argparse.ArgumentParser(description='Gerar currículo em formato PDF.')
+parser.add_argument('language', nargs='?', help='Código do idioma (ex: pt, en, es)')
+parser.add_argument('--template', '-t', help='Nome do template a ser usado', default='pdf')
+args = parser.parse_args()
 
 # Função para listar idiomas disponíveis
 def get_available_languages():
@@ -51,8 +101,8 @@ default_lang = 'pt' if 'pt' in available_languages else list(available_languages
 
 # Verificar qual idioma usar com base nos argumentos de linha de comando
 selected_lang = default_lang
-if len(sys.argv) > 1:
-    lang_arg = sys.argv[1].lower()
+if args.language:
+    lang_arg = args.language.lower()
     if lang_arg in available_languages:
         selected_lang = lang_arg
 
@@ -65,14 +115,6 @@ if not selected_lang:
 json_file = available_languages[selected_lang]['file']
 with open(json_file, 'r', encoding='utf-8') as file:
     data = json.load(file)
-
-# Função genérica para obter valores do JSON de maneira padronizada
-def get_field(data, primary_key, fallback_key=None):
-    if primary_key in data:
-        return data[primary_key]
-    elif fallback_key and fallback_key in data:
-        return data[fallback_key]
-    return None
 
 # Extrair dados básicos do JSON
 # Estrutura padronizada para todas as línguas
@@ -95,6 +137,19 @@ if not secoes_key:
 
 secoes = data[secoes_key]
 
+# Carregar o template
+template_manager = TemplateManager()
+template_name = args.template
+
+try:
+    template = template_manager.get_template(template_name)
+    print(f"Usando template: {template_name}")
+except ValueError as e:
+    print(f"Erro ao carregar template: {str(e)}")
+    print(f"Templates disponíveis: {', '.join(template_manager.list_templates())}")
+    print("Usando o template padrão 'pdf'.")
+    template = template_manager.get_template('pdf')
+
 # Obter nome do arquivo para saída PDF
 output_filename = get_field(data, 'nomeArquivoSaida', 'outputFileName')
 if not output_filename:
@@ -105,175 +160,16 @@ if not output_filename:
 pdf_filename = os.path.splitext(output_filename)[0] + ".pdf"
 
 # Criar documento PDF
-doc = SimpleDocTemplate(pdf_filename, pagesize=A4, 
-                        leftMargin=inch, rightMargin=inch,
-                        topMargin=inch, bottomMargin=inch)
+doc = template.create_document(pdf_filename)
 
-# Configuração de fontes
-
-# Estilos
-styles = getSampleStyleSheet()
-
-# Adicionar estilos personalizados
-nome_style = ParagraphStyle(
-    'Nome',
-    parent=styles['Title'],
-    fontSize=22,
-    fontName='Times-Roman',  
-    textColor=colors.black,
-    spaceAfter=0.1*inch,
-)
-
-contato_style = ParagraphStyle(
-    'Contato',
-    parent=styles['Normal'],
-    fontSize=11,
-    fontName='Times-Roman',
-    spaceAfter=0.1*inch,
-)
-
-secao_style = ParagraphStyle(
-    'Secao',
-    parent=styles['Heading2'],
-    fontSize=14,
-    fontName='Times-Roman',
-    textColor=colors.black,
-    spaceBefore=0.2*inch,
-    spaceAfter=0.1*inch,
-)
-
-normal_style = ParagraphStyle(
-    'Normal',
-    parent=styles['Normal'],
-    fontSize=11,
-    fontName='Times-Roman',
-    leading=14,
-)
-
-bullet_style = ParagraphStyle(
-    'Bullet',
-    parent=styles['Normal'],
-    fontSize=11,
-    fontName='Times-Roman',
-    leftIndent=20,
-    leading=14,
-)
+# Obter estilos definidos no template
+styles = template.get_styles()
 
 # Lista para elementos do PDF
 elements = []
 
-# Função para adicionar título
-def add_title(nome, email, telefone, linkedin):
-    elements.append(Paragraph(nome, nome_style))
-    
-    contato_text = f"📧 {email}   📱 {telefone}   🌐 {linkedin}"
-    elements.append(Paragraph(contato_text, contato_style))
-    
-    # Linha horizontal
-    elements.append(Paragraph("_" * 70, ParagraphStyle(
-        'Linha',
-        parent=styles['Normal'],
-        fontName='Times-Roman',
-        fontSize=8,
-    )))
-    elements.append(Spacer(1, 0.1*inch))
-
-# Função para adicionar seção
-def add_section_title(title):
-    section_text = f"<font color='#2F75B5'>■</font> {title}"
-    elements.append(Paragraph(section_text, secao_style))
-
-# Função para adicionar barra de skill usando uma única tabela simplificada
-def add_skill_bar(skill, level=5, max_level=5):
-    # Definir a cor azul usada no documento
-    azul = colors.Color(47/255, 117/255, 181/255)
-    
-    # Criar dados da tabela - uma célula para o texto e uma para cada quadrado da barra
-    data = [[f"{skill}:"]]
-    
-    # Definir estilo da tabela principal
-    style = TableStyle([
-        ('FONTSIZE', (0,0), (0,0), 11),
-        ('FONTNAME', (0,0), (0,0), 'Times-Roman'),  # Usando Times-Roman
-        ('VALIGN', (0,0), (0,0), 'MIDDLE'),
-        ('ALIGN', (0,0), (0,0), 'LEFT'),
-    ])
-    
-    # Criar a tabela com o texto da habilidade
-    table = Table(data, colWidths=[5.5*inch])
-    table.setStyle(style)
-    elements.append(table)
-    
-    # Tamanhos dos quadrados azuis
-    square_size = 0.15*inch  
-    
-    # Criar a barra como uma nova tabela logo abaixo
-    boxes_data = [['']*max_level] 
-    boxes_style = TableStyle([
-        ('GRID', (0,0), (-1,-1), 0, colors.white),  # Sem grade interna
-    ])
-    
-    # Adicionar estilo para cada caixa na barra
-    for i in range(max_level):
-        if i < level:
-            # Quadrado preenchido para níveis atingidos
-            boxes_style.add('BACKGROUND', (i,0), (i,0), azul)
-            boxes_style.add('BOX', (i,0), (i,0), 0.5, azul)  # Borda azul
-        else:
-            # Quadrado vazio para níveis não preenchidos
-            boxes_style.add('BOX', (i,0), (i,0), 0.5, azul)  # Apenas borda
-    
-    # Deslocar para posicionar a barra ao lado do texto da habilidade
-    elements.append(Spacer(1, -0.22*inch))  # Ajustando posição vertical
-    
-    # Adicionar espaço em branco para posicionar a barra à direita
-    elements.append(Paragraph("&nbsp;" * 40, normal_style))
-    
-    # Deslocar verticalmente para alinhar com o texto
-    elements.append(Spacer(1, -0.15*inch))  # Ajustando para os quadrados menores
-    
-    # Adicionar a barra de habilidade com quadrados menores
-    boxes_table = Table(boxes_data, colWidths=[square_size]*max_level, rowHeights=[square_size])
-    boxes_table.setStyle(boxes_style)
-    elements.append(boxes_table)
-    
-    # Espaço após a barra completa
-    elements.append(Spacer(1, 0.08*inch))
-
-# Função para adicionar quebra de página
-def add_page_break():
-    elements.append(PageBreak())
-
-# Função genérica para obter título de seção
-def get_section_title(section_data, title_keys=['titulo', 'title', 'titre', 'titel']):
-    for key in title_keys:
-        if key in section_data:
-            return section_data[key]
-    return "N/A"  # Fallback
-
-# Função genérica para obter conteúdo de seção
-def get_section_content(section_data, content_keys=['conteudo', 'content', 'contenido', 'inhalt']):
-    for key in content_keys:
-        if key in section_data:
-            return section_data[key]
-    return ""  # Fallback
-
-# Função genérica para obter lista de itens
-def get_section_list(section_data, list_keys=['lista', 'list', 'liste', 'lista']):
-    for key in list_keys:
-        if key in section_data:
-            return section_data[key]
-    return []  # Fallback
-
-# Função genérica para obter lista de empregos/experiências
-def get_jobs(section_data, jobs_keys=['empregos', 'jobs', 'empleos', 'emplois']):
-    for key in jobs_keys:
-        if key in section_data:
-            return section_data[key]
-    return []  # Fallback
-
 # Montar o currículo visual
-add_title(nome, email, telefone, linkedin)
+template.add_title(elements, nome, email, telefone, linkedin, styles)
 
 # Resumo Profissional - procurar por várias possíveis chaves
 resume_section = None
@@ -283,8 +179,8 @@ for key in ['resumoProfissional', 'professionalSummary', 'resumenProfesional', '
         break
 
 if resume_section:
-    add_section_title(get_section_title(resume_section))
-    elements.append(Paragraph(get_section_content(resume_section), normal_style))
+    template.add_section_title(elements, get_section_title(resume_section), styles)
+    elements.append(Paragraph(get_section_content(resume_section), styles['normal']))
     elements.append(Spacer(1, 0.1*inch))
 
 # Experiência Profissional - procurar por várias possíveis chaves
@@ -295,7 +191,7 @@ for key in ['experienciaProfissional', 'workExperience', 'experienciaLaboral', '
         break
 
 if experience_section:
-    add_section_title(get_section_title(experience_section))
+    template.add_section_title(elements, get_section_title(experience_section), styles)
     
     # Obter lista de empregos
     jobs = get_jobs(experience_section)
@@ -304,11 +200,11 @@ if experience_section:
     for job in jobs:
         position = get_field(job, 'cargo', 'position')
         if position:
-            elements.append(Paragraph(f"• {position}", bullet_style))
+            elements.append(Paragraph(f"• {position}", styles['bullet']))
         
         period = get_field(job, 'periodo', 'period')
         if period:
-            elements.append(Paragraph(period, normal_style))
+            elements.append(Paragraph(period, styles['normal']))
         
         # Obter descrição - procurar por várias possíveis chaves
         description_items = []
@@ -319,7 +215,7 @@ if experience_section:
         
         items = []
         for item in description_items:
-            items.append(Paragraph(f"- {item}", bullet_style))
+            items.append(Paragraph(f"- {item}", styles['bullet']))
             
         for item in items:
             elements.append(item)
@@ -327,7 +223,7 @@ if experience_section:
         elements.append(Spacer(1, 0.1*inch))
 
 # Habilidades Técnicas - procurar por várias possíveis chaves
-add_page_break()
+template.add_page_break(elements)
 skills_section = None
 for key in ['habilidadesTecnicas', 'technicalSkills', 'habilidadesTecnicas', 'competencesTechniques']:
     if key in secoes:
@@ -335,9 +231,8 @@ for key in ['habilidadesTecnicas', 'technicalSkills', 'habilidadesTecnicas', 'co
         break
 
 if skills_section:
-    add_section_title(get_section_title(skills_section))
-    
-    # Obter lista de habilidades
+    template.add_section_title(elements, get_section_title(skills_section), styles)
+      # Obter lista de habilidades
     skills = []
     for key in ['habilidades', 'skills', 'habilidades', 'competences']:
         if key in skills_section:
@@ -348,7 +243,7 @@ if skills_section:
         skill_name = get_field(skill, 'nome', 'name')
         skill_level = get_field(skill, 'nivel', 'level')
         if skill_name and skill_level:
-            add_skill_bar(skill_name, skill_level)
+            template.add_skill_bar(elements, skill_name, styles, skill_level)
     
     elements.append(Spacer(1, 0.1*inch))
 
@@ -360,11 +255,11 @@ for key in ['certificacoes', 'certifications', 'certificaciones', 'certification
         break
 
 if certifications_section:
-    add_section_title(get_section_title(certifications_section))
+    template.add_section_title(elements, get_section_title(certifications_section), styles)
     certifications = get_section_list(certifications_section)
     
     for cert in certifications:
-        elements.append(Paragraph(f"🏅 {cert}", normal_style))
+        elements.append(Paragraph(f"🏅 {cert}", styles['normal']))
     
     elements.append(Spacer(1, 0.1*inch))
 
@@ -376,7 +271,7 @@ for key in ['educacao', 'education', 'educacion', 'education']:
         break
 
 if education_section:
-    add_section_title(get_section_title(education_section))
+    template.add_section_title(elements, get_section_title(education_section), styles)
     
     # Obter lista de formações
     degrees = []
@@ -386,7 +281,7 @@ if education_section:
             break
     
     for degree in degrees:
-        elements.append(Paragraph(degree, normal_style))
+        elements.append(Paragraph(degree, styles['normal']))
     
     elements.append(Spacer(1, 0.1*inch))
 
@@ -398,7 +293,7 @@ for key in ['emAndamento', 'inProgress', 'enProgreso', 'enCours']:
         break
 
 if in_progress_section:
-    add_section_title(get_section_title(in_progress_section))
+    template.add_section_title(elements, get_section_title(in_progress_section), styles)
     
     # Obter lista de cursos
     courses = []
@@ -408,7 +303,7 @@ if in_progress_section:
             break
     
     for course in courses:
-        elements.append(Paragraph(course, normal_style))
+        elements.append(Paragraph(course, styles['normal']))
 
 # Gerar o PDF
 try:   
@@ -430,9 +325,7 @@ try:
         except Exception as e:
             # Se falhar em renomear, tentar outro nome de arquivo
             alternative_filename = os.path.splitext(pdf_filename)[0] + "_new.pdf"
-            doc = SimpleDocTemplate(alternative_filename, pagesize=A4, 
-                        leftMargin=inch, rightMargin=inch,
-                        topMargin=inch, bottomMargin=inch)
+            doc = template.create_document(alternative_filename)
             doc.build(elements)
             pdf_filename = alternative_filename
     else:
