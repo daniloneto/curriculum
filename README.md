@@ -28,8 +28,8 @@ Este projeto é um sistema completo para geração de currículos em formato DOC
 
 1. Clone este repositório:
 ```bash
-git clone https://github.com/daniloneto/curriculum.git
-cd curriculum
+git clone https://github.com/daniloneto/cv-generator.git
+cd cv-generator
 ```
 
 2. Instale as dependências necessárias:
@@ -44,7 +44,7 @@ pip install python-docx reportlab
 A maneira mais simples de usar o sistema é através do menu interativo:
 
 ```bash
-python gerar_curriculo.py
+python cv-generator.py
 ```
 
 Este comando inicia um assistente que permite escolher:
@@ -223,7 +223,7 @@ Cada arquivo JSON deve incluir:
 curriculum/
 ├── curriculo_docx.py       # Gerador de formato DOCX
 ├── curriculo_pdf.py        # Gerador de formato PDF
-├── gerar_curriculo.py      # Interface interativa
+├── cv-generator.py      # Interface interativa
 ├── curriculo_pt.json       # Dados em português
 ├── curriculo_en.json       # Dados em inglês
 ├── curriculo_es.json       # Dados em espanhol
