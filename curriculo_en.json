@@ -1,0 +1,96 @@
+{
+  "languageName": "English",
+  "name": "Danilo Neto",
+  "email": "email@gmail.com",
+  "phone": "00-0000-0000",
+  "linkedin": "https://www.linkedin.com/in/daniloneto/",
+  "sections": {
+    "professionalSummary": {
+      "title": "Professional Summary",
+      "content": "Professional with a strong technical foundation in back-end and solution architecture, focusing on cloud environments (Azure and AWS), microservices, and distributed systems. Senior Consultant at Avanade, working on technical design, team leadership, and delivery of robust solutions.\n\nT-Shaped profile: technical depth (C#, Node.js, Java/Spring Boot), ease in transitioning between product, operation, and strategy. Motivated by well-structured systems, solid decisions, and consistent team evolution."
+    },
+    "workExperience": {
+      "title": "Work Experience",
+      "jobs": [
+        {
+          "position": "Senior Development Consultant - Avanade",
+          "period": "Apr/2021 - Present",
+          "description": [
+            "Technical team leadership (7 devs), code review, delivery practices.",
+            "Scalable and resilient REST APIs (Node.js, Hexagonal Architecture, Java/Spring Batch).",
+            "AWS Serverless Stack: Lambda, DynamoDB, RDS Postgres, EventBridge, SQS, API Gateway, S3.",
+            "Observability: Dynatrace, K6 performance testing.",
+            "SRE, reliability, and process automation.",
+            "Previous projects: Azure, C# .NET Core, Angular/TypeScript, Azure Service Bus, TDD, DDD."
+          ]
+        },
+        {
+          "position": "Senior Systems Analyst - SENAR AR/BA",
+          "period": "Oct/2017 - Apr/2021",
+          "description": [
+            "Development in C#, ASP.NET MVC, Flutter, SQLite.",
+            "DevOps, Git, automation."
+          ]
+        },
+        {
+          "position": "Other positions:",
+          "period": "",
+          "description": [
+            "Systems Analyst - Open System (Jul/2017-Oct/2017)",
+            "Systems Analyst - Tao Interativa (Oct/2016-Jul/2017)",
+            "Mobile Developer - Safeticket (Dec/2015-Jul/2017)",
+            "Developer - Indra (Apr/2015-Dec/2015)",
+            "Independent Consulting (Aug/2010-Apr/2015)",
+            "Substitute Professor - IFBAIANO (Nov/2013-Sep/2014)",
+            "Systems Analyst - Expressa (Jun/2007-Aug/2010)",
+            "Mid-level Developer - CPM Braxis/Capgemini (Dec/2004-Jun/2007)",
+            "Junior Developer - M4F (Jul/2004-Dec/2004)",
+            "Intern - Rádio Metrópole (2003)"
+          ]
+        }
+      ]
+    },
+    "technicalSkills": {
+      "title": "Technical Skills",
+      "skills": [
+        {"name": "C#", "level": 5},
+        {"name": "Node.js", "level": 5},
+        {"name": "Java / Spring Boot", "level": 4},
+        {"name": "AWS", "level": 5},
+        {"name": "Azure", "level": 4},
+        {"name": "SQL Server", "level": 5},
+        {"name": "PostgreSQL", "level": 4},
+        {"name": "MongoDB", "level": 3},
+        {"name": "Angular", "level": 3},
+        {"name": "Flutter", "level": 3},
+        {"name": "TDD / DDD / Microservices", "level": 5},
+        {"name": "Git / DevOps", "level": 5}
+      ]
+    },
+    "certifications": {
+      "title": "Certifications",
+      "list": [
+        "Microsoft Certified: Azure Data Fundamentals",
+        "AWS Certified Cloud Practitioner",
+        "Accenture Technology Architecture Associate",
+        "Mongo SI Associate Certification",
+        "Foundational C# with Microsoft",
+        "Microsoft Certified MTA: Software Development Fundamentals"
+      ]
+    },
+    "education": {
+      "title": "Education",
+      "degrees": [
+        "MBA in Information Management - Salvador University (2009-2010)",
+        "Bachelor's Degree in Information Systems - Salvador University (2002-2007)"
+      ]
+    },
+    "inProgress": {
+      "title": "In Progress",
+      "courses": [
+        "Berlitz English Course",
+        "Github Copilot Certification"      ]
+    }
+  },
+  "outputFileName": "Resume_Danilo_Neto.docx"
+}

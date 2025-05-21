@@ -1,0 +1,97 @@
+{
+  "languageName": "Español",
+  "nombre": "Danilo Neto",
+  "email": "email@gmail.com",
+  "telefono": "00-0000-0000",
+  "linkedin": "https://www.linkedin.com/in/daniloneto/",
+  "secciones": {
+    "resumenProfesional": {
+      "titulo": "Resumen Profesional",
+      "contenido": "Profesional con una fuerte base técnica en back-end y arquitectura de soluciones, centrado en entornos cloud (Azure y AWS), microservicios y sistemas distribuidos. Consultor Senior en Avanade, trabajando en diseño técnico, liderazgo de equipos y entrega de soluciones robustas.\n\nPerfil T-Shaped: profundidad técnica (C#, Node.js, Java/Spring Boot), facilidad para transitar entre producto, operación y estrategia. Motivado por sistemas bien estructurados, decisiones sólidas y evolución consistente de los equipos."
+    },
+    "experienciaLaboral": {
+      "titulo": "Experiencia Laboral",
+      "empleos": [
+        {
+          "cargo": "Consultor Senior de Desarrollo - Avanade",
+          "periodo": "Abr/2021 - Presente",
+          "descripcion": [
+            "Liderazgo técnico del equipo (7 devs), revisión de código, prácticas de entrega.",
+            "APIs REST escalables y resilientes (Node.js, Arquitectura Hexagonal, Java/Spring Batch).",
+            "Stack AWS Serverless: Lambda, DynamoDB, RDS Postgres, EventBridge, SQS, API Gateway, S3.",
+            "Observabilidad: Dynatrace, pruebas de rendimiento K6.",
+            "SRE, confiabilidad y automatización de procesos.",
+            "Proyectos anteriores: Azure, C# .NET Core, Angular/TypeScript, Azure Service Bus, TDD, DDD."
+          ]
+        },
+        {
+          "cargo": "Analista de Sistemas Senior - SENAR AR/BA",
+          "periodo": "Oct/2017 - Abr/2021",
+          "descripcion": [
+            "Desarrollo en C#, ASP.NET MVC, Flutter, SQLite.",
+            "DevOps, Git, automatización."
+          ]
+        },
+        {
+          "cargo": "Otros cargos:",
+          "periodo": "",
+          "descripcion": [
+            "Analista de Sistemas - Open System (Jul/2017-Oct/2017)",
+            "Analista de Sistemas - Tao Interativa (Oct/2016-Jul/2017)",
+            "Desarrollador Móvil - Safeticket (Dic/2015-Jul/2017)",
+            "Desarrollador - Indra (Abr/2015-Dic/2015)",
+            "Consultoría Independiente (Ago/2010-Abr/2015)",
+            "Profesor sustituto - IFBAIANO (Nov/2013-Sep/2014)",
+            "Analista de sistemas - Expressa (Jun/2007-Ago/2010)",
+            "Desarrollador Pleno - CPM Braxis/Capgemini (Dic/2004-Jun/2007)",
+            "Desarrollador Junior - M4F (Jul/2004-Dic/2004)",
+            "Becario - Rádio Metrópole (2003)"
+          ]
+        }
+      ]
+    },
+    "habilidadesTecnicas": {
+      "titulo": "Habilidades Técnicas",
+      "habilidades": [
+        {"nombre": "C#", "nivel": 5},
+        {"nombre": "Node.js", "nivel": 5},
+        {"nombre": "Java / Spring Boot", "nivel": 4},
+        {"nombre": "AWS", "nivel": 5},
+        {"nombre": "Azure", "nivel": 4},
+        {"nombre": "SQL Server", "nivel": 5},
+        {"nombre": "PostgreSQL", "nivel": 4},
+        {"nombre": "MongoDB", "nivel": 3},
+        {"nombre": "Angular", "nivel": 3},
+        {"nombre": "Flutter", "nivel": 3},
+        {"nombre": "TDD / DDD / Microservicios", "nivel": 5},
+        {"nombre": "Git / DevOps", "nivel": 5}
+      ]
+    },
+    "certificaciones": {
+      "titulo": "Certificaciones",
+      "lista": [
+        "Microsoft Certified: Azure Data Fundamentals",
+        "AWS Certified Cloud Practitioner",
+        "Accenture Technology Architecture Associate",
+        "Mongo SI Associate Certification",
+        "Foundational C# with Microsoft",
+        "Microsoft Certified MTA: Software Development Fundamentals"
+      ]
+    },
+    "educacion": {
+      "titulo": "Educación",
+      "formacion": [
+        "MBA en Gestión de la Información - Universidad Salvador (2009-2010)",
+        "Licenciatura en Sistemas de Información - Universidad Salvador (2002-2007)"
+      ]
+    },
+    "enProgreso": {
+      "titulo": "En Progreso",
+      "cursos": [
+        "Curso de inglés Berlitz",
+        "Certificación Github Copilot"
+      ]
+    }
+  },
+  "nombreArchivoSalida": "Curriculum_Danilo_Neto_ES.docx"
+}
