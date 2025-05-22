@@ -257,6 +257,8 @@ Contribuições são bem-vindas! Sinta-se à vontade para:
 - Implementar suporte a novos idiomas
 - Melhorar a formatação dos documentos gerados
 - Estender a funcionalidade do sistema
+- 
+![Screenshot_22](https://github.com/user-attachments/assets/50d8d192-a68d-46ee-a5ba-79cf012e1616)
 
 ## Licença
 
