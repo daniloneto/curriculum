@@ -1,0 +1,33 @@
+﻿# Arquivos gerados pelo PyInstaller
+build/
+dist/
+*.spec
+
+# Arquivos de cache Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+
+# Ambientes virtuais
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Arquivos de desenvolvimento
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Arquivos gerados durante a execução
+*.pdf
+*.docx
+*.log
+
+# Arquivos temporários do sistema
+.DS_Store
+Thumbs.db
