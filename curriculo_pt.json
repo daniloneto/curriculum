@@ -7,7 +7,7 @@
   "secoes": {
     "resumoProfissional": {
       "titulo": "Resumo Profissional",
-      "conteudo": "Profissional com forte base técnica em back-end e arquitetura de soluções, com foco em ambientes cloud (Azure e AWS), microserviços e sistemas distribuídos. Consultor Sênior na Avanade, atuando em desenho técnico, liderança de times e entrega de soluções robustas.\n\nPerfil T-Shaped: profundidade técnica (C#, Node.js, Java/Spring Boot), facilidade em transitar por produto, operação e estratégia. Motivado por sistemas bem estruturados, decisões sólidas e evolução consistente dos times."
+      "conteudo": "Sou um profissional com forte base técnica em back-end e arquitetura de soluções, com foco em ambientes cloud (Azure e AWS), microserviços e sistemas distribuídos. Consultor Sênior na Avanade, atuando em desenho técnico, liderança de times e entrega de soluções robustas.\n\nPerfil T-Shaped: profundidade técnica (C#, Node.js, Java/Spring Boot), facilidade em transitar por produto, operação e estratégia. Motivado por sistemas bem estruturados, decisões sólidas e evolução consistente dos times."
     },
     "experienciaProfissional": {
       "titulo": "Experiência Profissional",
@@ -61,10 +61,19 @@
         {"nome": "SQL Server", "nivel": 5},
         {"nome": "PostgreSQL", "nivel": 4},
         {"nome": "MongoDB", "nivel": 3},
-        {"nome": "Angular", "nivel": 3},
-        {"nome": "Flutter", "nivel": 3},
-        {"nome": "TDD / DDD / Microsserviços", "nivel": 5},
-        {"nome": "Git / DevOps", "nivel": 5}
+        {"nome": "Angular", "nivel": 2},
+        {"nome": "Flutter", "nivel": 2},
+        {"nome": "DDD", "nivel": 5},
+        {"nome": "Microsserviços", "nivel": 5},
+        {"nome": "TDD", "nivel": 4},
+        {"nome": "SRE", "nivel": 3},
+        {"nome": "Docker", "nivel": 4},
+        {"nome": "Kubernetes", "nivel": 2},
+        {"nome": "CI/CD", "nivel": 4},
+        {"nome": "Git", "nivel": 5},
+        {"nome": "Agile / Scrum", "nivel": 5},
+        {"nome": "Azure DevOps", "nivel": 5},
+        {"nome": "Github Copilot", "nivel": 5}
       ]
     },
     "certificacoes": {

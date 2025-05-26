@@ -63,8 +63,17 @@
         {"name": "MongoDB", "level": 3},
         {"name": "Angular", "level": 3},
         {"name": "Flutter", "level": 3},
-        {"name": "TDD / DDD / Microservices", "level": 5},
-        {"name": "Git / DevOps", "level": 5}
+        {"name": "DDD", "level": 5},
+        {"name": "Microservices", "level": 5},
+        {"name": "TDD", "level": 4},
+        {"name": "SRE", "level": 3},
+        {"name": "Docker", "level": 4},
+        {"name": "Kubernetes", "level": 3},
+        {"name": "CI/CD", "level": 4},
+        {"name": "Git", "level": 5},
+        {"name": "Agile / Scrum", "level": 5},
+        {"name": "Azure DevOps", "level": 5},
+        {"nome": "Github Copilot", "nivel": 5}
       ]
     },
     "certifications": {
