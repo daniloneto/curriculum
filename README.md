@@ -49,8 +49,9 @@ python cv-generator.py
 
 Este comando inicia um assistente que permite escolher:
 1. O idioma do currículo (baseado nos arquivos JSON disponíveis)
-2. O formato de saída (PDF ou DOCX)
-3. O template de layout desejado (padrão ou personalizado)
+2. O formato de saída (PDF, DOCX, ou PDF otimizado para ATS)
+3. Para PDFs regulares, há uma opção adicional para otimização ATS
+4. O template de layout desejado (padrão ou personalizado)
 
 ### Uso via Linha de Comando
 
@@ -66,15 +67,21 @@ Para gerar o currículo em formato PDF:
 python curriculo_pdf.py [CÓDIGO_IDIOMA] [--template NOME_TEMPLATE]
 ```
 
+Para gerar o currículo em formato PDF otimizado para ATS:
+```bash
+python curriculo_pdf_ats.py [CÓDIGO_IDIOMA] [--template NOME_TEMPLATE]
+```
+
 #### Parâmetros:
 - `CÓDIGO_IDIOMA`: Código de 2 letras do idioma (pt, en, es, etc.)
 - `--template NOME_TEMPLATE`: (Opcional) Nome do template a ser utilizado
 
 #### Exemplos:
 ```bash
-python curriculo_docx.py pt                    # Português com template padrão
-python curriculo_pdf.py en                     # Inglês com template padrão
-python curriculo_pdf.py pt --template moderno  # Português com template moderno
+python curriculo_docx.py pt                     # Português com template padrão
+python curriculo_pdf.py en                      # Inglês com template padrão
+python curriculo_pdf.py pt --template pdf_moderno # Português com template moderno
+python curriculo_pdf_ats.py pt                  # Português com template ATS
 ```
 
 Se nenhum código de idioma for especificado, o sistema usará o português como padrão (se disponível).
@@ -89,7 +96,8 @@ O sistema permite personalizar completamente o layout do currículo através de 
 |------|---------|-----------|
 | **pdf** | PDF | Template padrão para formato PDF com layout clássico |
 | **docx** | DOCX | Template padrão para formato DOCX |
-| **moderno** | PDF | Design contemporâneo com cores modernas e quadradinhos para níveis de habilidade |
+| **pdf_moderno** | PDF | Design contemporâneo com cores modernas e quadradinhos para níveis de habilidade |
+| **pdf_ats** | PDF | Otimizado para Applicant Tracking Systems (ATS) brasileiros |
 
 ### Como Funcionam os Templates
 
@@ -117,6 +125,57 @@ Cada template deve implementar funções específicas para renderização do doc
 ### Criando Novos Templates
 
 Você pode criar seus próprios templates simplesmente adicionando um novo arquivo na pasta `templates/` implementando as funções necessárias. O sistema detectará automaticamente o novo template e o disponibilizará na interface de seleção.
+
+## Template ATS Otimizado
+
+O template ATS (Applicant Tracking System) foi desenvolvido especificamente para maximizar a compatibilidade com sistemas de rastreamento de currículos utilizados por empresas brasileiras durante processos seletivos.
+
+### O que é um ATS?
+
+ATS (Applicant Tracking System) é um software usado por recrutadores para organizar, pesquisar e filtrar currículos de candidatos. Estes sistemas geralmente:
+
+- Analisam o texto do currículo procurando palavras-chave relevantes
+- Classificam candidatos com base na correspondência com os requisitos da vaga
+- Podem rejeitar automaticamente currículos que não atendem a critérios mínimos
+
+### Recursos do Template ATS
+
+| Característica | Benefício |
+|----------------|-----------|
+| **Estrutura simplificada** | Facilita a leitura por sistemas automatizados |
+| **Formatação limpa** | Evita elementos visuais complexos que podem confundir o ATS |
+| **Palavras-chave destacadas** | Aumenta a chance de reconhecimento pelo sistema |
+| **Seção dedicada de palavras-chave** | Garante que termos importantes sejam detectados |
+| **Rotulagem explícita** | Identifica claramente cada seção (ex: "Cargo:", "Empresa:", "Período:") |
+| **Níveis de habilidade textuais** | Usa descrições em vez de representações visuais para níveis |
+
+### Como usar o Template ATS
+
+Você pode gerar um currículo otimizado para ATS de duas maneiras:
+
+1. **Via interface interativa:**
+   ```bash
+   python cv-generator.py
+   ```
+   E então selecione o formato PDF e o template "pdf_ats".
+
+2. **Via linha de comando:**
+   ```bash
+   python curriculo_pdf_ats.py [CÓDIGO_IDIOMA]
+   ```
+
+### Melhores Práticas para ATS
+
+Para maximizar suas chances com sistemas ATS:
+
+1. **Use palavras-chave relevantes** extraídas diretamente da descrição da vaga
+2. **Mantenha formatos de data consistentes** (ex: MM/AAAA - MM/AAAA)
+3. **Evite cabeçalhos e rodapés** com informações importantes
+4. **Use seções padrão** reconhecíveis (Experiência, Habilidades, Educação)
+5. **Inclua nomes de tecnologias e ferramentas** específicas mencionadas na vaga
+6. **Evite abreviações** pouco comuns ou siglas não explicadas
+
+O template ATS deste sistema implementa automaticamente muitas dessas práticas, mas lembre-se de adaptar o conteúdo do seu currículo para cada vaga.
 
 ## Estrutura de Dados
 
@@ -223,7 +282,8 @@ Cada arquivo JSON deve incluir:
 curriculum/
 ├── curriculo_docx.py       # Gerador de formato DOCX
 ├── curriculo_pdf.py        # Gerador de formato PDF
-├── cv-generator.py      # Interface interativa
+├── curriculo_pdf_ats.py    # Gerador de PDF otimizado para ATS
+├── cv-generator.py         # Interface interativa
 ├── curriculo_pt.json       # Dados em português
 ├── curriculo_en.json       # Dados em inglês
 ├── curriculo_es.json       # Dados em espanhol
@@ -231,7 +291,8 @@ curriculum/
     ├── __init__.py         # Gerenciador de templates
     ├── template_pdf.py     # Template padrão para PDF
     ├── template_docx.py    # Template padrão para DOCX
-    └── template_pdf_moderno.py  # Template moderno para PDF
+    ├── template_pdf_moderno.py  # Template moderno para PDF
+    └── template_pdf_ats.py # Template otimizado para ATS
 ```
 
 ## Adicionando Novos Idiomas
