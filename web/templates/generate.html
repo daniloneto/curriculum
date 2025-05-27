@@ -35,14 +35,19 @@
                 DOCX
             </div>
         </div>
-    </div>
-
-    <div id="alert-box" class="alert" style="display: none;"></div>
+    </div>    <div id="alert-box" class="alert" style="display: none;"></div>
 
     <button id="generate-button" class="btn" disabled>Gerar</button>
     
     <div id="download-link-container" class="mt-3" style="display: none;">
         <a id="download-link" href="#" class="btn btn-success">Baixar</a>
+        <p class="mt-2">Se o download não iniciar automaticamente, clique no botão acima.</p>
+    </div>
+    
+    <!-- Área de debug para ambiente de desenvolvimento -->
+    <div id="debug-info" class="mt-4" style="display: none; border: 1px solid #ccc; padding: 10px; border-radius: 5px;">
+        <h4>Informações de Depuração</h4>
+        <pre id="debug-output" style="background-color: #f5f5f5; padding: 10px; max-height: 200px; overflow: auto;"></pre>
     </div>
 </div>
 

@@ -7,6 +7,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const alertBox = document.getElementById('alert-box');
     const downloadLinkContainer = document.getElementById('download-link-container');
     const downloadLink = document.getElementById('download-link');
+    const debugInfo = document.getElementById('debug-info');
+    const debugOutput = document.getElementById('debug-output');
+    
+    // Mostrar área de debug em ambiente de desenvolvimento (verificar usando URL)
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost) {
+        debugInfo.style.display = 'block';
+    }
     
     // Log para depuração
     console.log('Opções de formato encontradas:', formatOptions.length);
@@ -80,27 +88,91 @@ document.addEventListener('DOMContentLoaded', function() {
                 format: selectedFormat,
                 template: selectedTemplate
             })
+        })        .then(response => {
+            // Registrar informações sobre a resposta para depuração
+            if (debugOutput) {
+                addDebugInfo('Resposta do servidor:', {
+                    status: response.status,
+                    statusText: response.statusText
+                });
+            }
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
         })
-        .then(response => response.json())
         .then(data => {
+            if (debugOutput) {
+                addDebugInfo('Dados de resposta:', data);
+            }
+            
             if (data.error) {
                 showAlert(data.error, 'danger');
             } else {
                 showAlert('Arquivo gerado com sucesso!', 'success');
                 
-                // Exibir o link para download
+                // Log para depuração
+                console.log('Resposta do servidor:', data);
+                  // Exibir o link para download
                 downloadLink.href = data.download_url;
                 downloadLink.textContent = `Baixar ${data.filename}`;
                 downloadLinkContainer.style.display = 'block';
                 
-                // Fazer o download automaticamente
+                // Log adicional para depuração
+                console.log('URL de download:', data.download_url);
+                console.log('Nome do arquivo:', data.filename);
+                  // Fazer o download automaticamente
                 setTimeout(function() {
-                    window.location = data.download_url;
+                    console.log('Redirecionando para:', data.download_url);
+                    if (debugOutput) {
+                        addDebugInfo('Iniciando download:', {
+                            url: data.download_url,
+                            filename: data.filename
+                        });
+                    }
+                    
+                    // Usar um link temporário para garantir o download
+                    const tempLink = document.createElement('a');
+                    tempLink.href = data.download_url;
+                    tempLink.setAttribute('download', data.filename);
+                    tempLink.setAttribute('target', '_blank');
+                    document.body.appendChild(tempLink);
+                    tempLink.click();
+                    document.body.removeChild(tempLink);
+                    
+                    // Verificar se o arquivo existe via API de depuração (apenas em localhost)
+                    if (isLocalhost) {
+                        setTimeout(function() {
+                            fetch(`/debug/file_exists/${data.filename}`)
+                                .then(response => response.json())
+                                .then(fileInfo => {
+                                    addDebugInfo('Informações do arquivo:', fileInfo);
+                                })
+                                .catch(error => {
+                                    addDebugInfo('Erro ao verificar arquivo:', error.message);
+                                });
+                        }, 500);
+                    }
+                    
+                    // Fallback: se o método acima não funcionar, redirecionar diretamente
+                    setTimeout(function() {
+                        if (debugOutput) {
+                            addDebugInfo('Usando fallback de download', { url: data.download_url });
+                        }
+                        window.location.href = data.download_url;
+                    }, 1000);
                 }, 1000);
             }
-        })
-        .catch(error => {
+        })        .catch(error => {
+            console.error('Erro na requisição:', error);
             showAlert('Erro ao gerar o arquivo: ' + error, 'danger');
+            if (debugOutput) {
+                addDebugInfo('Erro na requisição:', {
+                    message: error.message,
+                    stack: error.stack
+                });
+            }
         })
         .finally(() => {
             // Restaurar o botão
@@ -109,11 +181,24 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Função para adicionar informações de depuração
+    function addDebugInfo(label, data) {
+        if (debugOutput) {
+            const timestamp = new Date().toLocaleTimeString();
+            let content = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+            debugOutput.innerHTML += `[${timestamp}] ${label}\n${content}\n\n`;
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+    }
+    
     // Função para exibir alertas
     function showAlert(message, type) {
         alertBox.innerHTML = message;
         alertBox.className = `alert alert-${type}`;
         alertBox.style.display = 'block';
+        
+        // Adicionar à área de debug
+        addDebugInfo('Alerta:', { type, message });
         
         // Esconder a mensagem após 5 segundos
         setTimeout(function() {
