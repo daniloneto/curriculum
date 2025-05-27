@@ -15,11 +15,18 @@ from templates import TemplateManager
 import re
 
 # Função genérica para obter valores do JSON de maneira padronizada
-def get_field(data, primary_key, fallback_key=None):
+def get_field(data, primary_key, fallback_key=None, additional_fallbacks=None):
     if primary_key in data:
         return data[primary_key]
     elif fallback_key and fallback_key in data:
         return data[fallback_key]
+    
+    # Verificar chaves adicionais específicas para alguns campos
+    if additional_fallbacks:
+        for key in additional_fallbacks:
+            if key in data:
+                return data[key]
+    
     return None
 
 # Função genérica para obter título de seção
@@ -165,7 +172,7 @@ with open(json_file, 'r', encoding='utf-8') as file:
 
 # Extrair dados básicos do JSON
 # Estrutura padronizada para todas as línguas
-nome = get_field(data, 'nome', 'name')
+nome = get_field(data, 'nome', 'name', ['nombre'])
 email = data['email']  # Email geralmente é o mesmo em qualquer idioma
 telefone = get_field(data, 'telefone', 'phone')
 linkedin = data['linkedin']  # LinkedIn geralmente é o mesmo em qualquer idioma
@@ -199,9 +206,11 @@ except ValueError as e:
 
 # Obter nome do arquivo para saída PDF
 output_filename = get_field(data, 'nomeArquivoSaida', 'outputFileName')
-if not output_filename:
-    # Se nenhum nome de arquivo for especificado, criar um a partir do nome e idioma
-    output_filename = f"Curriculo_ATS_{nome.replace(' ', '_')}_{selected_lang}.pdf"
+if not output_filename:    # Se nenhum nome de arquivo for especificado, criar um a partir do nome e idioma
+    if nome:
+        output_filename = f"Curriculo_ATS_{nome.replace(' ', '_')}_{selected_lang}.pdf"
+    else:
+        output_filename = f"Curriculo_ATS_{selected_lang}.pdf"
 else:
     # Adicionar sufixo ATS ao nome do arquivo e garantir extensão .pdf
     base_name, ext = os.path.splitext(output_filename)
