@@ -34,7 +34,57 @@ cd cv-generator
 
 2. Instale as dependências necessárias:
 ```bash
-pip install python-docx reportlab
+pip install -r requirements.txt
+```
+
+Isso instalará todas as bibliotecas necessárias para o funcionamento do sistema, incluindo:
+- python-docx: Para geração de arquivos DOCX
+- reportlab: Para geração de arquivos PDF
+- flask: Para a interface web
+- Outras bibliotecas auxiliares
+
+## Gerenciamento de Dependências
+
+O projeto utiliza várias bibliotecas Python para funcionar corretamente. Todas as dependências estão listadas no arquivo `requirements.txt` na raiz do projeto. 
+
+### Principais dependências
+
+1. **Para geração de documentos**:
+   - `python-docx`: Manipulação de arquivos DOCX
+   - `reportlab`: Criação de PDFs
+   - `pillow`: Processamento de imagens para os PDFs
+
+2. **Para a interface web**:
+   - `flask`: Framework web
+   - `flask-cors`: Suporte a CORS para a API
+   - `jsonschema`: Validação de JSON
+
+### Atualizando dependências
+
+Se você precisar atualizar as dependências ou adicionar novas bibliotecas:
+
+1. Adicione a biblioteca ao arquivo `requirements.txt`
+2. Execute o comando:
+   ```bash
+   pip install -r requirements.txt --upgrade
+   ```
+
+### Ambientes virtuais
+
+Para evitar conflitos com outras aplicações Python, é recomendável utilizar um ambiente virtual:
+
+```bash
+# Criar ambiente virtual
+python -m venv venv
+
+# Ativar ambiente virtual
+# No Windows:
+venv\Scripts\activate
+# No Linux/Mac:
+source venv/bin/activate
+
+# Instalar dependências no ambiente virtual
+pip install -r requirements.txt
 ```
 
 ## Uso
@@ -85,6 +135,36 @@ python curriculo_pdf_ats.py pt                  # Português com template ATS
 ```
 
 Se nenhum código de idioma for especificado, o sistema usará o português como padrão (se disponível).
+
+### Interface Web
+
+Para uma experiência mais amigável, você pode iniciar a interface web:
+
+```bash
+# Certifique-se de que todas as dependências estão instaladas
+pip install -r requirements.txt
+
+# navegue até a pasta web e execute:
+cd web
+python app.py
+```
+
+Após executar este comando, acesse http://localhost:5000 no seu navegador para utilizar a interface web.
+
+A interface web oferece duas funcionalidades principais:
+
+1. **Edição de Arquivos JSON**: Permite selecionar e editar qualquer arquivo de currículo em formato JSON.
+   - Selecione o idioma desejado no menu dropdown
+   - Edite o conteúdo do JSON
+   - Clique em "Salvar" para salvar as alterações
+
+2. **Geração de Currículos**: Permite gerar facilmente currículos em diferentes formatos.
+   - Selecione o idioma desejado
+   - Escolha o formato (PDF, PDF otimizado para ATS, ou DOCX)
+   - Clique em "Gerar" para criar o arquivo
+   - O download do arquivo será iniciado automaticamente
+
+Esta interface simplifica o processo de edição e geração de currículos, especialmente para usuários menos familiarizados com linha de comando.
 
 ## Sistema de Templates
 
@@ -279,20 +359,37 @@ Cada arquivo JSON deve incluir:
 ## Estrutura do Projeto
 
 ```
-curriculum/
+cv-generator/
 ├── curriculo_docx.py       # Gerador de formato DOCX
 ├── curriculo_pdf.py        # Gerador de formato PDF
 ├── curriculo_pdf_ats.py    # Gerador de PDF otimizado para ATS
-├── cv-generator.py         # Interface interativa
+├── cv-generator.py         # Interface interativa de linha de comando
+├── requirements.txt        # Lista de dependências do projeto
 ├── curriculo_pt.json       # Dados em português
 ├── curriculo_en.json       # Dados em inglês
 ├── curriculo_es.json       # Dados em espanhol
-└── templates/              # Diretório de templates
-    ├── __init__.py         # Gerenciador de templates
-    ├── template_pdf.py     # Template padrão para PDF
-    ├── template_docx.py    # Template padrão para DOCX
-    ├── template_pdf_moderno.py  # Template moderno para PDF
-    └── template_pdf_ats.py # Template otimizado para ATS
+├── templates/              # Diretório de templates para geração de documentos
+│   ├── __init__.py         # Gerenciador de templates
+│   ├── template_pdf.py     # Template padrão para PDF
+│   ├── template_docx.py    # Template padrão para DOCX
+│   ├── template_pdf_moderno.py  # Template moderno para PDF
+│   └── template_pdf_ats.py # Template otimizado para ATS
+└── web/                    # Interface web
+    ├── app.py              # Aplicação Flask principal
+    ├── static/             # Arquivos estáticos
+    │   ├── css/            # Estilos CSS
+    │   │   └── styles.css  # Folha de estilos principal
+    │   ├── js/             # Scripts JavaScript
+    │   │   ├── edit_new.js # Funções para edição de JSON
+    │   │   └── generate.js # Funções para geração de currículos
+    │   └── schemas/        # Schemas JSON para validação
+    │       ├── schema_pt.json
+    │       ├── schema_en.json
+    │       └── schema_es.json
+    └── templates/          # Templates HTML
+        ├── base.html       # Template base com estrutura comum
+        ├── edit.html       # Página de edição de JSON
+        └── generate.html   # Página de geração de currículos
 ```
 
 ## Adicionando Novos Idiomas
@@ -318,8 +415,86 @@ Contribuições são bem-vindas! Sinta-se à vontade para:
 - Implementar suporte a novos idiomas
 - Melhorar a formatação dos documentos gerados
 - Estender a funcionalidade do sistema
-- 
+
 ![Screenshot_22](https://github.com/user-attachments/assets/50d8d192-a68d-46ee-a5ba-79cf012e1616)
+
+# Interface Web - CV Generator
+
+Esta interface web fornece uma maneira fácil e intuitiva de editar arquivos JSON de currículo e gerar PDFs/DOCXs a partir deles.
+
+## Iniciando a Interface Web
+
+Para iniciar a interface web, execute o seguinte comando no terminal:
+
+```bash
+# Certifique-se de que todas as dependências estão instaladas
+pip install -r requirements.txt
+
+# Navegue até a pasta web e execute:
+cd web
+python app.py
+```
+
+Após executar este comando, abra seu navegador e acesse:
+http://localhost:5000 ou http://127.0.0.1:5000
+
+## Funcionalidades
+
+A interface web possui duas funcionalidades principais:
+
+### 1. Edição de Arquivos JSON
+
+Na página de edição, você pode:
+
+- Selecionar um arquivo JSON de currículo para editar através do menu dropdown
+- Visualizar e editar o conteúdo completo do JSON em um editor de texto
+- Salvar as alterações feitas no arquivo
+
+Dicas para edição:
+- Mantenha a estrutura JSON intacta para evitar erros de formatação
+- Não remova campos-chave como "languageName", "nome", etc.
+- Você pode adicionar novos campos conforme necessário, seguindo a estrutura existente
+
+### 2. Geração de Currículos
+
+Na página de geração, você pode:
+
+- Selecionar o idioma do currículo (baseado nos arquivos JSON disponíveis)
+- Escolher o formato desejado:
+  - PDF (diferentes estilos disponíveis)
+  - PDF otimizado para ATS (Applicant Tracking Systems)
+  - DOCX (documento Word)
+- Gerar o currículo com um clique
+- O arquivo será gerado e baixado automaticamente
+
+## Tecnologias da Interface Web
+
+A interface web utiliza as seguintes tecnologias:
+
+### Backend
+- **Flask**: Framework web leve e flexível para Python
+- **Flask-CORS**: Extensão para lidar com Cross-Origin Resource Sharing
+- **JSONSchema**: Para validação de estruturas JSON
+
+### Frontend
+- **HTML5/CSS3**: Para a estrutura e estilo da interface
+- **JavaScript (ES6+)**: Para interatividade
+- **CodeMirror**: Editor de código usado para editar os arquivos JSON
+- **Fetch API**: Para comunicação com o backend
+
+### Recursos
+- **Edição de JSON com syntax highlighting**: Facilita a visualização e edição do conteúdo
+- **Validação em tempo real**: Verifica erros de sintaxe JSON
+- **Visualização instantânea**: Prévia do documento gerado
+- **Interface responsiva**: Adaptável a diferentes tamanhos de tela
+
+## Personalização da Interface Web
+
+Você pode personalizar a interface web editando os seguintes arquivos:
+
+- **`web/static/css/styles.css`**: Para mudar o visual da interface
+- **`web/templates/*.html`**: Para modificar a estrutura HTML
+- **`web/static/js/*.js`**: Para alterar o comportamento JavaScript
 
 ## Licença
 

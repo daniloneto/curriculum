@@ -1,20 +1,132 @@
 {
-  "languageName": "English",
-  "name": "Danilo Neto",
   "email": "email@gmail.com",
-  "phone": "00-0000-0000",
+  "languageName": "English",
   "linkedin": "https://www.linkedin.com/in/daniloneto/",
+  "name": "Danilo Neto",
+  "outputFileName": "Resume_Danilo_Neto.docx",
+  "phone": "00-0000-0000",
   "sections": {
+    "certifications": {
+      "list": [
+        "Microsoft Certified: Azure Data Fundamentals",
+        "AWS Certified Cloud Practitioner",
+        "Accenture Technology Architecture Associate",
+        "Mongo SI Associate Certification",
+        "Foundational C# with Microsoft",
+        "Microsoft Certified MTA: Software Development Fundamentals"
+      ],
+      "title": "Certifications"
+    },
+    "education": {
+      "degrees": [
+        "MBA in Information Management - Salvador University (2009-2010)",
+        "Bachelor's Degree in Information Systems - Salvador University (2002-2007)"
+      ],
+      "title": "Education"
+    },
+    "inProgress": {
+      "courses": [
+        "Berlitz English Course",
+        "Github Copilot Certification"
+      ],
+      "title": "In Progress"
+    },
     "professionalSummary": {
-      "title": "Professional Summary",
-      "content": "Professional with a strong technical foundation in back-end and solution architecture, focusing on cloud environments (Azure and AWS), microservices, and distributed systems. Senior Consultant at Avanade, working on technical design, team leadership, and delivery of robust solutions.\n\nT-Shaped profile: technical depth (C#, Node.js, Java/Spring Boot), ease in transitioning between product, operation, and strategy. Motivated by well-structured systems, solid decisions, and consistent team evolution."
+      "content": "Professional with a strong technical foundation in back-end and solution architecture, focusing on cloud environments (Azure and AWS), microservices, and distributed systems. Senior Consultant at Avanade, working on technical design, team leadership, and delivery of robust solutions.\n\nT-Shaped profile: technical depth (C#, Node.js, Java/Spring Boot), ease in transitioning between product, operation, and strategy. Motivated by well-structured systems, solid decisions, and consistent team evolution.",
+      "title": "Professional Summary"
+    },
+    "technicalSkills": {
+      "skills": [
+        {
+          "level": 5,
+          "name": "C#"
+        },
+        {
+          "level": 5,
+          "name": "Node.js"
+        },
+        {
+          "level": 4,
+          "name": "Java / Spring Boot"
+        },
+        {
+          "level": 5,
+          "name": "AWS"
+        },
+        {
+          "level": 4,
+          "name": "Azure"
+        },
+        {
+          "level": 5,
+          "name": "SQL Server"
+        },
+        {
+          "level": 4,
+          "name": "PostgreSQL"
+        },
+        {
+          "level": 3,
+          "name": "MongoDB"
+        },
+        {
+          "level": 3,
+          "name": "Angular"
+        },
+        {
+          "level": 3,
+          "name": "Flutter"
+        },
+        {
+          "level": 5,
+          "name": "DDD"
+        },
+        {
+          "level": 5,
+          "name": "Microservices"
+        },
+        {
+          "level": 4,
+          "name": "TDD"
+        },
+        {
+          "level": 3,
+          "name": "SRE"
+        },
+        {
+          "level": 4,
+          "name": "Docker"
+        },
+        {
+          "level": 3,
+          "name": "Kubernetes"
+        },
+        {
+          "level": 4,
+          "name": "CI/CD"
+        },
+        {
+          "level": 5,
+          "name": "Git"
+        },
+        {
+          "level": 5,
+          "name": "Agile / Scrum"
+        },
+        {
+          "level": 5,
+          "name": "Azure DevOps"
+        },
+        {
+          "nivel": 5,
+          "nome": "Github Copilot"
+        }
+      ],
+      "title": "Technical Skills"
     },
     "workExperience": {
-      "title": "Work Experience",
       "jobs": [
         {
-          "position": "Senior Development Consultant - Avanade",
-          "period": "Apr/2021 - Present",
           "description": [
             "Technical team leadership (7 devs), code review, delivery practices.",
             "Scalable and resilient REST APIs (Node.js, Hexagonal Architecture, Java/Spring Batch).",
@@ -22,19 +134,19 @@
             "Observability: Dynatrace, K6 performance testing.",
             "SRE, reliability, and process automation.",
             "Previous projects: Azure, C# .NET Core, Angular/TypeScript, Azure Service Bus, TDD, DDD."
-          ]
+          ],
+          "period": "Apr/2021 - Present",
+          "position": "Senior Development Consultant - Avanade"
         },
         {
-          "position": "Senior Systems Analyst - SENAR AR/BA",
-          "period": "Oct/2017 - Apr/2021",
           "description": [
             "Development in C#, ASP.NET MVC, Flutter, SQLite.",
             "DevOps, Git, automation."
-          ]
+          ],
+          "period": "Oct/2017 - Apr/2021",
+          "position": "Senior Systems Analyst - SENAR AR/BA"
         },
         {
-          "position": "Other positions:",
-          "period": "",
           "description": [
             "Systems Analyst - Open System (Jul/2017-Oct/2017)",
             "Systems Analyst - Tao Interativa (Oct/2016-Jul/2017)",
@@ -46,60 +158,12 @@
             "Mid-level Developer - CPM Braxis/Capgemini (Dec/2004-Jun/2007)",
             "Junior Developer - M4F (Jul/2004-Dec/2004)",
             "Intern - Rádio Metrópole (2003)"
-          ]
+          ],
+          "period": "",
+          "position": "Other positions:"
         }
-      ]
-    },
-    "technicalSkills": {
-      "title": "Technical Skills",
-      "skills": [
-        {"name": "C#", "level": 5},
-        {"name": "Node.js", "level": 5},
-        {"name": "Java / Spring Boot", "level": 4},
-        {"name": "AWS", "level": 5},
-        {"name": "Azure", "level": 4},
-        {"name": "SQL Server", "level": 5},
-        {"name": "PostgreSQL", "level": 4},
-        {"name": "MongoDB", "level": 3},
-        {"name": "Angular", "level": 3},
-        {"name": "Flutter", "level": 3},
-        {"name": "DDD", "level": 5},
-        {"name": "Microservices", "level": 5},
-        {"name": "TDD", "level": 4},
-        {"name": "SRE", "level": 3},
-        {"name": "Docker", "level": 4},
-        {"name": "Kubernetes", "level": 3},
-        {"name": "CI/CD", "level": 4},
-        {"name": "Git", "level": 5},
-        {"name": "Agile / Scrum", "level": 5},
-        {"name": "Azure DevOps", "level": 5},
-        {"nome": "Github Copilot", "nivel": 5}
-      ]
-    },
-    "certifications": {
-      "title": "Certifications",
-      "list": [
-        "Microsoft Certified: Azure Data Fundamentals",
-        "AWS Certified Cloud Practitioner",
-        "Accenture Technology Architecture Associate",
-        "Mongo SI Associate Certification",
-        "Foundational C# with Microsoft",
-        "Microsoft Certified MTA: Software Development Fundamentals"
-      ]
-    },
-    "education": {
-      "title": "Education",
-      "degrees": [
-        "MBA in Information Management - Salvador University (2009-2010)",
-        "Bachelor's Degree in Information Systems - Salvador University (2002-2007)"
-      ]
-    },
-    "inProgress": {
-      "title": "In Progress",
-      "courses": [
-        "Berlitz English Course",
-        "Github Copilot Certification"      ]
+      ],
+      "title": "Work Experience"
     }
-  },
-  "outputFileName": "Resume_Danilo_Neto.docx"
+  }
 }

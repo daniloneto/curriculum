@@ -1,0 +1,421 @@
+/* Estilos gerais */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1, h2, h3 {
+    margin-bottom: 20px;
+    color: #2c3e50;
+}
+
+/* Navbar */
+.navbar {
+    background-color: #3498db;
+    color: white;
+    padding: 15px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    text-decoration: none;
+}
+
+.navbar-nav {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-item {
+    margin-left: 20px;
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 5px 0;
+    position: relative;
+}
+
+.nav-link:hover {
+    color: #f0f0f0;
+}
+
+.nav-link.active {
+    font-weight: bold;
+}
+
+.nav-link.active::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: white;
+}
+
+/* Form elements */
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+select, button, .btn {
+    padding: 10px 15px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+}
+
+select {
+    width: 100%;
+    max-width: 300px;
+    background-color: white;
+}
+
+.btn {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    font-weight: 500;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+.btn:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+}
+
+.btn:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary {
+    background-color: #7f8c8d;
+}
+
+.btn-secondary:hover {
+    background-color: #6c7a7d;
+}
+
+.btn-success {
+    background-color: #2ecc71;
+}
+
+.btn-success:hover {
+    background-color: #27ae60;
+}
+
+/* Card */
+.card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* JSON Editor */
+.json-editor {
+    width: 100%;
+    height: 500px;
+    font-family: monospace;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+}
+
+/* Alert messages */
+.alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: 500;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Loading indicator */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #3498db;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Utility classes */
+.mt-3 {
+    margin-top: 15px;
+}
+
+.mb-3 {
+    margin-bottom: 15px;
+}
+
+.d-none {
+    display: none;
+}
+
+.tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-right: 10px;
+}
+
+.tab.active {
+    border-bottom-color: #3498db;
+    font-weight: bold;
+}
+
+.format-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.format-option {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-width: 180px;
+    font-weight: 500;
+}
+
+.format-option:hover {
+    background-color: #e9ecef;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.format-option.selected {
+    background-color: #3498db;
+    color: white;
+    border-color: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* CodeMirror Customization */
+.CodeMirror {
+    font-family: 'Source Code Pro', 'Consolas', 'Monaco', monospace;
+    line-height: 1.5;
+    border-radius: 6px;
+    transition: border 0.3s ease;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.CodeMirror:focus-within {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2), inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Melhor visualização da estrutura JSON */
+.CodeMirror .cm-punctuation {
+    opacity: 0.7;
+}
+
+/* Espaçamento após os dois pontos para melhor leitura */
+.CodeMirror .cm-punctuation + span {
+    margin-left: 2px;
+}
+
+/* Melhoria nos caracteres de quebra da estrutura JSON */
+.CodeMirror .cm-punctuation.cm-bracket {
+    font-weight: normal;
+    color: #8be9fd !important;
+}
+
+/* Destacar área selecionada */
+.CodeMirror-selected {
+    background-color: rgba(255, 121, 198, 0.2) !important;
+}
+
+/* Estilo de linha quando encontra texto na busca */
+.CodeMirror-focused .CodeMirror-selectedtext {
+    background-color: rgba(255, 184, 108, 0.3) !important;
+}
+
+.CodeMirror-gutters {
+    background-color: #282a36;
+    border-right: 1px solid #333;
+}
+
+/* JSON key-value highlighting */
+.cm-property {
+    color: #8be9fd !important;  /* Bright cyan for keys */
+    font-weight: bold;
+    text-shadow: 0px 0px 1px rgba(139, 233, 253, 0.3);
+    transition: color 0.2s ease;
+}
+.cm-property:hover {
+    color: #00d8ff !important;  /* Brighter cyan on hover */
+}
+.cm-string {
+    color: #f1fa8c !important;  /* Yellow for string values */
+    font-style: normal;
+}
+.cm-number {
+    color: #ff79c6 !important;  /* Pink for numeric values */
+    font-weight: 500;
+}
+.cm-atom {
+    color: #50fa7b !important;  /* Green for boolean/null values */
+    font-weight: 500;
+}
+.cm-punctuation {
+    color: #6272a4 !important;
+    opacity: 0.8;
+}
+
+/* Make colon after property more visible */
+.cm-property + .cm-punctuation {
+    color: #bd93f9 !important;
+    opacity: 1;
+}
+.cm-keyword {
+    color: #50fa7b !important;
+    font-weight: bold;
+}
+
+/* Special styling for booleans and null values */
+.cm-atom.cm-json-boolean {
+    color: #ffb86c !important;  /* Orange for boolean values */
+    font-weight: bold;
+}
+
+.cm-atom.cm-json-null {
+    color: #bd93f9 !important;  /* Purple for null values */
+    font-style: italic;
+}
+
+/* Highlight current line with subtle background */
+.CodeMirror-activeline-background {
+    background: rgba(255, 255, 255, 0.07) !important;
+}
+/* Add subtle border between key and value */
+.cm-property + .cm-punctuation {
+    margin-left: 1px;
+    margin-right: 1px;
+}
+
+/* Button styling for format button */
+.format-button {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.format-button:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}
+
+.format-button:disabled {
+    opacity: 0.5;
+    transform: none;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* Language selection styles */
+.language-selection {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.language-selection select {
+    flex: 1;
+}
+
+.language-selection #new-json-button {
+    padding: 5px 15px;
+    background-color: #50fa7b;
+    color: #282a36;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.language-selection #new-json-button:hover {
+    background-color: #5af78e;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}

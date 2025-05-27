@@ -5,7 +5,8 @@ Este arquivo define as funções e estilos usados para criar um layout de currí
 
 from docx import Document
 from docx.shared import Pt, RGBColor
-from docx.oxml.shared import OxmlElement, qn
+from docx.oxml.parser import OxmlElement
+from docx.oxml.ns import qn
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_BREAK
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
@@ -18,16 +19,17 @@ def add_title(doc, nome, email, telefone, linkedin):
     run = p.add_run(nome)
     run.font.size = Pt(22)
     run.font.bold = True
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-
-    # Linha de contato com ícones (texto)
+    p.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT    # Linha de contato com ícones (texto)
     p = doc.add_paragraph()
-    p.add_run("📧 ").bold = True
-    p.add_run(email + "   ")
-    p.add_run("📱 ").bold = True
-    p.add_run(telefone + "   ")
-    p.add_run("🌐 ").bold = True
-    p.add_run(linkedin)
+    if email:
+        p.add_run("📧 ").bold = True
+        p.add_run(email + "   ")
+    if telefone:
+        p.add_run("📱 ").bold = True
+        p.add_run(telefone + "   ")
+    if linkedin:
+        p.add_run("🌐 ").bold = True
+        p.add_run(linkedin)
     p.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
 
     # Linha

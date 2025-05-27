@@ -1,0 +1,15 @@
+# Bibliotecas principais para geração de currículos
+python-docx>=0.8.11
+reportlab>=3.6.0
+pillow>=9.0.0
+
+# Bibliotecas para a interface web
+flask>=2.0.1
+werkzeug>=2.0.1
+flask-cors>=3.0.10
+jsonschema>=4.0.0
+
+# Bibliotecas auxiliares
+jinja2>=3.0.1
+markdown>=3.3.4
+markupsafe>=2.0.1

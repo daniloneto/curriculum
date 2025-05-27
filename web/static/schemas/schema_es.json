@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["languageName", "nombre"],
+  "additionalProperties": true,
+  "properties": {
+    "languageName": {
+      "type": "string",
+      "description": "Nombre del idioma"
+    },
+    "nombre": {
+      "type": "string",
+      "description": "Nombre completo para el currículum"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Dirección de correo electrónico"
+    },
+    "linkedin": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL del perfil de LinkedIn"
+    },
+    "telefono": {
+      "type": "string",
+      "description": "Número de teléfono de contacto"
+    },
+    "nombreArchivoSalida": {
+      "type": "string",
+      "description": "Nombre del archivo de salida para el currículum generado"
+    },
+    "ubicacion": {
+      "type": "string",
+      "description": "Ciudad/Estado de residencia"
+    },
+    "secciones": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "resumen": {
+          "type": "object",
+          "required": ["texto", "titulo"],
+          "properties": {
+            "texto": {
+              "type": "string",
+              "description": "Texto de resumen profesional"
+            },
+            "titulo": {
+              "type": "string",
+              "description": "Título de la sección de resumen"
+            }
+          }
+        },
+        "experienciaProfesional": {
+          "type": "object",
+          "required": ["empleos", "titulo"],
+          "properties": {
+            "empleos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["cargo", "periodo"],
+                "properties": {
+                  "cargo": {
+                    "type": "string",
+                    "description": "Cargo o función"
+                  },
+                  "periodo": {
+                    "type": "string",
+                    "description": "Período de trabajo (ej: 'Ene/2020 - Presente')"
+                  },
+                  "descripcion": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Lista de responsabilidades y logros"
+                  }
+                }
+              }
+            },
+            "titulo": {
+              "type": "string",
+              "description": "Título de la sección de experiencia profesional"
+            }
+          }
+        },
+        "educacion": {
+          "type": "object",
+          "required": ["formacion", "titulo"],
+          "properties": {
+            "formacion": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Lista de formaciones académicas"
+            },
+            "titulo": {
+              "type": "string",
+              "description": "Título de la sección de educación"
+            }
+          }
+        },
+        "habilidades": {
+          "type": "object",
+          "required": ["lista", "titulo"],
+          "properties": {
+            "lista": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Lista de habilidades técnicas"
+            },
+            "titulo": {
+              "type": "string",
+              "description": "Título de la sección de habilidades"
+            }
+          }
+        },
+        "idiomas": {
+          "type": "object",
+          "required": ["lista", "titulo"],
+          "properties": {
+            "lista": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Lista de idiomas y niveles de competencia"
+            },
+            "titulo": {
+              "type": "string",
+              "description": "Título de la sección de idiomas"
+            }
+          }
+        },
+        "certificaciones": {
+          "type": "object",
+          "required": ["lista", "titulo"],
+          "properties": {
+            "lista": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Lista de certificaciones"
+            },
+            "titulo": {
+              "type": "string",
+              "description": "Título de la sección de certificaciones"
+            }
+          }
+        },
+        "enProgreso": {
+          "type": "object",
+          "required": ["cursos", "titulo"],
+          "properties": {
+            "cursos": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Lista de cursos o certificaciones en progreso"
+            },
+            "titulo": {
+              "type": "string",
+              "description": "Título de la sección en progreso"
+            }
+          }
+        }
+      }
+    }
+  }
+}

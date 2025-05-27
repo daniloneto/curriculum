@@ -1,6 +1,7 @@
 from docx import Document
 from docx.shared import Pt, RGBColor
-from docx.oxml.shared import OxmlElement, qn
+from docx.oxml.parser import OxmlElement
+from docx.oxml.ns import qn
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_BREAK
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
@@ -90,11 +91,18 @@ except ValueError as e:
 doc = template.create_document()
 
 # Função genérica para obter valores do JSON de maneira padronizada
-def get_field(data, primary_key, fallback_key=None):
+def get_field(data, primary_key, fallback_key=None, additional_fallbacks=None):
     if primary_key in data:
         return data[primary_key]
     elif fallback_key and fallback_key in data:
         return data[fallback_key]
+    
+    # Verificar chaves adicionais específicas para alguns campos
+    if additional_fallbacks:
+        for key in additional_fallbacks:
+            if key in data:
+                return data[key]
+    
     return None
 
 # Função genérica para obter título de seção
@@ -127,7 +135,7 @@ def get_jobs(section_data, jobs_keys=['empregos', 'jobs', 'empleos', 'emplois'])
 
 # Extrair dados básicos do JSON
 # Estrutura padronizada para todas as línguas
-nome = get_field(data, 'nome', 'name')
+nome = get_field(data, 'nome', 'name', ['nombre'])
 email = data['email']
 telefone = get_field(data, 'telefone', 'phone')
 linkedin = data['linkedin']
@@ -280,7 +288,10 @@ if in_progress_section:
 output_path = get_field(data, 'nomeArquivoSaida', 'outputFileName')
 if not output_path:
     # Se nenhum nome de arquivo for especificado, criar um a partir do nome e idioma
-    output_path = f"Curriculo_{nome.replace(' ', '_')}_{selected_lang}.docx"
+    if nome:
+        output_path = f"Curriculo_{nome.replace(' ', '_')}_{selected_lang}.docx"
+    else:
+        output_path = f"Curriculo_{selected_lang}.docx"
 
 doc.save(output_path)
 

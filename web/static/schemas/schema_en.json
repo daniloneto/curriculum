@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["languageName", "name"],
+  "additionalProperties": true,
+  "properties": {
+    "languageName": {
+      "type": "string",
+      "description": "Language name"
+    },
+    "name": {
+      "type": "string",
+      "description": "Full name for the resume"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address"
+    },
+    "linkedin": {
+      "type": "string",
+      "format": "uri",
+      "description": "LinkedIn profile URL"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Contact phone number"
+    },
+    "outputFileName": {
+      "type": "string",
+      "description": "Output file name for the generated resume"
+    },
+    "location": {
+      "type": "string",
+      "description": "City/State of residence"
+    },
+    "sections": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "summary": {
+          "type": "object",
+          "required": ["text", "title"],
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "Professional summary text"
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of the summary section"
+            }
+          }
+        },
+        "workExperience": {
+          "type": "object",
+          "required": ["jobs", "title"],
+          "properties": {
+            "jobs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["position", "period"],
+                "properties": {
+                  "position": {
+                    "type": "string",
+                    "description": "Job title or role"
+                  },
+                  "period": {
+                    "type": "string",
+                    "description": "Work period (e.g., 'Jan/2020 - Present')"
+                  },
+                  "description": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "List of responsibilities and achievements"
+                  }
+                }
+              }
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of the work experience section"
+            }
+          }
+        },
+        "education": {
+          "type": "object",
+          "required": ["degrees", "title"],
+          "properties": {
+            "degrees": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of academic degrees"
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of the education section"
+            }
+          }
+        },
+        "skills": {
+          "type": "object",
+          "required": ["list", "title"],
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of technical skills"
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of the skills section"
+            }
+          }
+        },
+        "languages": {
+          "type": "object",
+          "required": ["list", "title"],
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of languages and proficiency levels"
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of the languages section"
+            }
+          }
+        },
+        "certifications": {
+          "type": "object",
+          "required": ["list", "title"],
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of certifications"
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of the certifications section"
+            }
+          }
+        },
+        "inProgress": {
+          "type": "object",
+          "required": ["courses", "title"],
+          "properties": {
+            "courses": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of ongoing courses or certifications"
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of the in progress section"
+            }
+          }
+        }
+      }
+    }
+  }
+}
