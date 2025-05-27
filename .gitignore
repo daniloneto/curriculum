@@ -33,3 +33,6 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
+# Ignorar arquivos de ambiente
+.env
+

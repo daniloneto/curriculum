@@ -7,7 +7,15 @@ from flask import Flask, render_template, request, jsonify, send_file, redirect,
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from templates import TemplateManager
 
+# Detectar se está em ambiente de produção (Render) ou local
+def is_production():
+    """Detecta se o aplicativo está rodando em ambiente de produção (Render)."""
+    return os.environ.get('RENDER') == 'true' or os.environ.get('FLASK_ENV') == 'production'
+
 app = Flask(__name__)
+
+# Cache de arquivos temporários
+file_cache = {}
 
 # Função para listar idiomas disponíveis (adaptado do cv-generator.py)
 def get_available_languages():
@@ -450,8 +458,7 @@ def generate_pdf():
             
             # Procurar o arquivo gerado (suponha que termina com o código do idioma e a extensão apropriada)
             file_extension = '.pdf' if format_type.startswith('pdf') else '.docx'
-            
-            # Ler a saída para encontrar o nome do arquivo gerado
+              # Ler a saída para encontrar o nome do arquivo gerado
             output = result.stdout
             filename = None
             
@@ -459,7 +466,7 @@ def generate_pdf():
                 if 'Arquivo gerado:' in line:
                     filename = line.split('Arquivo gerado:')[-1].strip()
                     break
-            
+                    
             if not filename:
                 # Tentar encontrar qualquer arquivo recém-criado
                 files = glob.glob(os.path.join(output_dir, f"*{file_extension}"))
@@ -472,12 +479,40 @@ def generate_pdf():
                 return jsonify({'error': 'Não foi possível encontrar o arquivo gerado'}), 500
                 
             print(f"Arquivo gerado: {filename}")
+            file_path = os.path.join(root_dir, filename)
             
-            return jsonify({
-                'success': True, 
-                'filename': filename,
-                'download_url': url_for('download_file', filename=filename)
-            })
+            # Verificar se o arquivo realmente existe
+            if not os.path.exists(file_path):
+                print(f"ERRO: Arquivo gerado não encontrado: {file_path}")
+                return jsonify({'error': 'Arquivo gerado não encontrado no servidor'}), 500
+                
+            # Comportamento diferente baseado no ambiente
+            if is_production():
+                # Em produção (Render), usar sistema temporário
+                import uuid
+                file_id = str(uuid.uuid4())
+                  # Armazenar o caminho completo no cache global
+                global file_cache
+                file_cache[file_id] = file_path
+                
+                return jsonify({
+                    'success': True, 
+                    'filename': filename,
+                    'file_id': file_id,
+                    'download_url': url_for('download_file', file_id=file_id)
+                })
+            else:
+                # Em ambiente local, usar sistema de arquivos normal
+                # Garantir que a URL tenha o nome do arquivo correto
+                download_url = url_for('download_file_local', filename=filename)
+                print(f"URL de download local gerada: {download_url}")
+                print(f"Caminho completo do arquivo: {file_path}")
+                return jsonify({
+                    'success': True, 
+                    'filename': filename,
+                    'download_url': download_url,
+                    'file_path': file_path  # Adicionar o caminho completo para depuração
+                })
             
         except Exception as e:
             print(f"Erro ao gerar currículo: {str(e)}")
@@ -486,10 +521,107 @@ def generate_pdf():
     except Exception as e:
         return jsonify({'error': f'Erro ao processar requisição: {str(e)}'}), 500
 
-@app.route('/download/<filename>')
-def download_file(filename):
+@app.route('/download/<file_id>')
+def download_file(file_id):
+    """Download de um arquivo usando file_id temporário (para ambiente de produção)."""
+    # Verificar se o ID do arquivo existe no cache
+    global file_cache
+    if file_id not in file_cache:
+        return jsonify({'error': 'Arquivo não encontrado ou expirado'}), 404
+        
+    file_path = file_cache[file_id]
+    
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'Arquivo não encontrado no servidor'}), 404
+    
+    # Determinar o tipo MIME com base na extensão
+    filename = os.path.basename(file_path)
+    mimetype = 'application/pdf' if filename.endswith('.pdf') else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    
+    # Ler o conteúdo do arquivo
+    with open(file_path, 'rb') as f:
+        content = f.read()
+    
+    # Usar serve_temporary_file para enviar o arquivo
+    return serve_temporary_file(content, filename, mimetype)
+
+@app.route('/download_local/<filename>')
+def download_file_local(filename):
+    """Download de um arquivo usando o sistema de arquivos local."""
     root_dir = os.path.dirname(os.path.dirname(__file__))
-    return send_file(os.path.join(root_dir, filename), as_attachment=True)
+    file_path = os.path.join(root_dir, filename)
+    
+    print(f"Tentando baixar o arquivo: {file_path}")
+    
+    if not os.path.exists(file_path):
+        print(f"ERRO: Arquivo não encontrado: {file_path}")
+        return jsonify({'error': 'Arquivo não encontrado no servidor'}), 404
+    
+    try:
+        # Determinar o tipo MIME com base na extensão
+        mimetype = 'application/pdf' if filename.endswith('.pdf') else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        
+        # Usar o método mais robusto para enviar o arquivo
+        return send_file(
+            file_path, 
+            as_attachment=True, 
+            download_name=filename,
+            mimetype=mimetype
+        )
+    except Exception as e:
+        print(f"ERRO ao enviar arquivo: {str(e)}")
+        return jsonify({'error': f'Erro ao baixar arquivo: {str(e)}'}), 500
+
+# Adicionar função para servir arquivos temporários
+
+def serve_temporary_file(content, filename, mimetype):
+    """Serve um arquivo gerado sem salvá-lo permanentemente no servidor."""
+    from io import BytesIO
+    from flask import send_file
+    
+    print(f"Servindo arquivo temporário: {filename} ({len(content)} bytes)")
+    print(f"Tipo MIME: {mimetype}")
+    
+    buffer = BytesIO()
+    buffer.write(content)
+    buffer.seek(0)
+    
+    try:
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,  # 'download_name' em versões recentes do Flask
+            mimetype=mimetype
+        )
+    except Exception as e:
+        print(f"ERRO ao servir arquivo temporário: {str(e)}")
+        return jsonify({'error': f'Erro ao servir arquivo temporário: {str(e)}'}), 500
+
+@app.route('/debug/file_exists/<filename>')
+def debug_file_exists(filename):
+    """Rota de depuração para verificar se um arquivo existe."""
+    root_dir = os.path.dirname(os.path.dirname(__file__))
+    file_path = os.path.join(root_dir, filename)
+    
+    if os.path.exists(file_path):
+        file_info = {
+            'exists': True,
+            'path': file_path,
+            'size': os.path.getsize(file_path),
+            'modified': os.path.getmtime(file_path),
+            'is_file': os.path.isfile(file_path)
+        }
+        return jsonify(file_info)
+    else:
+        return jsonify({
+            'exists': False,
+            'path': file_path,
+            'message': 'Arquivo não encontrado'
+        }), 404
 
 if __name__ == '__main__':
+    # Desenvolvimento local
     app.run(debug=True)
+else:
+    # Em produção, debug deve ser False
+    app.config['DEBUG'] = False
