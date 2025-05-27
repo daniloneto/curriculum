@@ -1,4 +1,4 @@
-# Sistema de Geração de Currículos Multilíngue
+# Sistema de Geração de Currículos Multilíngue com otimização para ATS
 
 Este projeto é um sistema completo para geração de currículos em formato DOCX e PDF a partir de arquivos JSON estruturados, com suporte para múltiplos idiomas e layouts personalizáveis. O sistema permite criar currículos profissionais rapidamente em diversos formatos e idiomas.
 
@@ -13,6 +13,52 @@ Este projeto é um sistema completo para geração de currículos em formato DOC
   - Elementos visuais como ícones e indicadores de nível de habilidade (barras ou quadradinhos)
   - Formatação profissional com seções bem definidas
   - Quebras de página automáticas para melhor organização
+
+
+## Deploy no Render (Cloud)
+
+Você pode hospedar esta aplicação gratuitamente na nuvem usando o [Render](https://render.com/).
+
+### Passo a Passo
+
+1. **Acesse o site do Render**
+   - Entre em [https://render.com/](https://render.com/) e clique em **Sign Up** para criar uma conta gratuita (pode usar login do GitHub).
+
+2. **Conecte seu GitHub**
+   - Após criar a conta, conecte o Render ao seu GitHub (será solicitado na primeira criação de serviço).
+
+3. **Faça o push do seu projeto para o GitHub**
+   - Certifique-se de que todo o código está em um repositório no GitHub.
+
+4. **Crie um novo Web Service**
+   - No painel do Render, clique em **New +** > **Web Service**.
+   - Escolha o repositório do seu projeto.
+
+5. **Configure o serviço**
+   - **Branch:** escolha a branch principal (geralmente `main` ou `master`).
+   - **Build Command:**  
+     ```
+     pip install -r requirements.txt
+     ```
+   - **Start Command:**  
+     ```
+     gunicorn wsgi:app
+     ```
+     (ou `gunicorn web.app:app` se não usar wsgi.py)
+   - **Environment:** escolha Python 3.x
+
+6. **Variáveis de ambiente (opcional)**
+   - Adicione a variável `FLASK_ENV=production`
+
+7. **Clique em "Create Web Service"**
+   - O Render irá instalar as dependências, buildar e rodar o app automaticamente.
+
+8. **Acesse sua aplicação**
+   - Após o deploy, o Render mostrará a URL pública do seu app.
+
+Pronto! Seu gerador de currículos estará disponível na nuvem.
+
+---
 
 ## Requisitos
 
