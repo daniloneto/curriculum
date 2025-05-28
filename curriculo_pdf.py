@@ -230,25 +230,41 @@ if experience_section:
             elements.append(Paragraph(period, styles['normal']))
         
         # Obter descrição - procurar por várias possíveis chaves
-        description_items = []
+        description_content = None
         for key in ['descricao', 'description', 'descripcion']:
             if key in job:
-                description_items = job[key]
+                description_content = job[key]
                 break
         
-        items = []
-        for item in description_items:
-            items.append(Paragraph(f"- {item}", styles['bullet']))
+        processed_description_items = []
+        if isinstance(description_content, str):
+            # If it's a string, split by newlines to create multiple bullet points.
+            # Filter out empty strings that might result from multiple newlines.
+            processed_description_items = [s.strip() for s in description_content.split('\\n') if s.strip()]
+            # If splitting by newline results in an empty list, but the original string was not empty,
+            # treat the original string as a single item. This covers cases where the string has no newlines.
+            if not processed_description_items and description_content.strip():
+                 processed_description_items = [description_content.strip()]
+        elif isinstance(description_content, list):
+            # If it's already a list, assume each item is a bullet point
+            # Ensure all items are strings and stripped of whitespace.
+            processed_description_items = [str(item).strip() for item in description_content if str(item).strip()]
+
+        # Create Paragraph objects for each processed description item
+        item_paragraphs = []
+        for item_text in processed_description_items:
+            item_paragraphs.append(Paragraph(f"- {item_text}", styles['bullet']))
             
-        for item in items:
-            elements.append(item)
+        for p in item_paragraphs:
+            elements.append(p)
         
         elements.append(Spacer(1, 0.1*inch))
 
 # Habilidades Técnicas - procurar por várias possíveis chaves
 template.add_page_break(elements)
 skills_section = None
-for key in ['habilidadesTecnicas', 'technicalSkills', 'habilidadesTecnicas', 'competencesTechniques']:
+# Ensure unique keys in a preferred order for lookup
+for key in ['habilidadesTecnicas', 'technicalSkills', 'competencesTechniques']: # PT/ES, EN, FR
     if key in secoes:
         skills_section = secoes[key]
         break
@@ -257,16 +273,22 @@ if skills_section:
     template.add_section_title(elements, get_section_title(skills_section), styles)
       # Obter lista de habilidades
     skills = []
-    for key in ['habilidades', 'skills', 'habilidades', 'competences']:
+    # Ensure unique keys in a preferred order for lookup
+    for key in ['habilidades', 'skills', 'competencias', 'competences']: # Added 'competencias' for robustness, ensure unique keys
         if key in skills_section:
             skills = skills_section[key]
             break
     
     for skill in skills:
-        skill_name = get_field(skill, 'nome', 'name')
-        skill_level = get_field(skill, 'nivel', 'level')
-        if skill_name and skill_level:
-            template.add_skill_bar(elements, skill_name, styles, skill_level)
+        # Adjusted get_field calls to correctly find keys for different languages
+        skill_name = get_field(skill, 'name', 'nome', ['nombre']) # Checks 'name', then 'nome', then 'nombre'
+        skill_level_str = get_field(skill, 'level', 'nivel') # Checks 'level', then 'nivel'
+        if skill_name and skill_level_str:
+            try:
+                skill_level = int(skill_level_str) # Convert to integer
+                template.add_skill_bar(elements, skill_name, styles, skill_level)
+            except ValueError:
+                print(f"Aviso: Nível de habilidade inválido para '{skill_name}'. Esperado um número, recebido '{skill_level_str}'. Pulando esta habilidade.")
     
     elements.append(Spacer(1, 0.1*inch))
 

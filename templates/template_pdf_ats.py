@@ -133,19 +133,57 @@ def add_skill_bar(elements, skill, styles, level=5, max_level=5):
     add_skill(elements, skill, styles, level, max_level)
 
 # Função para adicionar competência - formato de texto plano com nível explícito para ATS
-def add_skill(elements, skill, styles, level=5, max_level=5):
+def add_skill(elements, skill, styles, level=5, max_level=5, lang='pt'): # Add lang parameter
     # Representação textual do nível para melhor reconhecimento ATS
     level_text = ""
-    if level == 1:
-        level_text = "Básico"
-    elif level == 2:
-        level_text = "Intermediário Baixo"
-    elif level == 3:
-        level_text = "Intermediário"
-    elif level == 4:
-        level_text = "Avançado"
-    elif level == 5:
-        level_text = "Especialista"
+    
+    # Convert level to int if it's a string, with error handling
+    try:
+        current_level = int(level)
+    except ValueError:
+        # Fallback or error message if level is not a valid number string
+        print(f"Warning: Invalid skill level '{level}' for skill '{skill}'. Using default.")
+        current_level = 3 # Default to Intermediate
+
+    if lang == 'en':
+        if current_level == 1:
+            level_text = "Basic"
+        elif current_level == 2:
+            level_text = "Lower Intermediate"
+        elif current_level == 3:
+            level_text = "Intermediate"
+        elif current_level == 4:
+            level_text = "Advanced"
+        elif current_level == 5:
+            level_text = "Expert"
+        else:
+            level_text = "Intermediate" # Default for unknown levels
+    elif lang == 'es':
+        if current_level == 1:
+            level_text = "Básico"
+        elif current_level == 2:
+            level_text = "Intermedio Bajo"
+        elif current_level == 3:
+            level_text = "Intermedio"
+        elif current_level == 4:
+            level_text = "Avanzado"
+        elif current_level == 5:
+            level_text = "Experto"
+        else:
+            level_text = "Intermedio" # Default for unknown levels
+    else: # Default to Portuguese (pt)
+        if current_level == 1:
+            level_text = "Básico"
+        elif current_level == 2:
+            level_text = "Intermediário Baixo"
+        elif current_level == 3:
+            level_text = "Intermediário"
+        elif current_level == 4:
+            level_text = "Avançado"
+        elif current_level == 5:
+            level_text = "Especialista"
+        else:
+            level_text = "Intermediário" # Default for unknown levels
     
     # Formatar competência com nível para melhor leitura do ATS
     skill_text = f"{skill}: {level_text}"
@@ -153,25 +191,33 @@ def add_skill(elements, skill, styles, level=5, max_level=5):
     elements.append(Spacer(1, 0.05*inch))
 
 # Função para adicionar experiência profissional formatada para ATS
-def add_job_experience(elements, cargo, empresa, periodo, descricao, styles):
+def add_job_experience(elements, cargo, empresa, periodo, descricao, styles, labels):
     # Formatar cargo e empresa com palavras-chave claras para ATS
-    job_title = f"<b>Cargo:</b> {cargo}"
+    job_title = f"<b>{labels.get('position', 'Cargo')}:</b> {cargo}"
     elements.append(Paragraph(job_title, styles['subsecao']))
     
     if empresa:
-        company = f"<b>Empresa:</b> {empresa}"
-        elements.append(Paragraph(company, styles['normal']))
+        company_text = f"<b>{labels.get('company', 'Empresa')}:</b> {empresa}"
+        elements.append(Paragraph(company_text, styles['normal']))
     
     if periodo:
-        period = f"<b>Período:</b> {periodo}"
-        elements.append(Paragraph(period, styles['normal']))
+        period_text = f"<b>{labels.get('period', 'Período')}:</b> {periodo}"
+        elements.append(Paragraph(period_text, styles['normal']))
     
     elements.append(Spacer(1, 0.05*inch))
     
     # Adicionar descrição como lista de bullets com formatação clara para ATS
-    if descricao and isinstance(descricao, list):
-        elements.append(Paragraph("<b>Responsabilidades e Realizações:</b>", styles['normal']))
-        for item in descricao:
+    processed_description_items = []
+    if isinstance(descricao, str):
+        processed_description_items = [s.strip() for s in descricao.split('\n') if s.strip()]
+        if not processed_description_items and descricao.strip(): # Handle single-line non-empty strings
+            processed_description_items = [descricao.strip()]
+    elif isinstance(descricao, list):
+        processed_description_items = [str(item).strip() for item in descricao if str(item).strip()]
+
+    if processed_description_items:
+        elements.append(Paragraph(f"<b>{labels.get('description_heading', 'Responsabilidades e Realizações')}:</b>", styles['normal']))
+        for item in processed_description_items:
             bullet_item = f"• {item}"
             elements.append(Paragraph(bullet_item, styles['bullet']))
     

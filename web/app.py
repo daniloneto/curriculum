@@ -97,8 +97,8 @@ def get_available_templates():
 
 @app.route('/')
 def index():
-    # Redirecionar para a página de edição
-    return redirect(url_for('edit'))
+    # Redirecionar para a página de cadastro
+    return redirect(url_for('cadastrar'))
 
 @app.route('/schemas/<language>')
 def get_schema(language):
@@ -211,6 +211,12 @@ def create_basic_schema(language):
 def edit():
     languages = get_available_languages()
     return render_template('edit.html', languages=languages)
+
+@app.route('/cadastrar')
+def cadastrar():
+    """Rota para a página de cadastro de currículo."""
+    languages = get_available_languages()
+    return render_template('cadastrar.html', languages=languages)
 
 @app.route('/generate')
 def generate():
