@@ -325,6 +325,35 @@
     .validation-status.invalid::before {
         background-color: #ff5555;
     }
+
+    /* Estilos para o botão de sincronização com aviso */
+    .btn-warning {
+        background-color: #ffc107 !important;
+        color: #212529 !important;
+        border-color: #ffc107 !important;
+    }
+    
+    .btn-warning:hover {
+        background-color: #e0a800 !important;
+        border-color: #d39e00 !important;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: .25em .4em;
+        font-size: 75%;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: .25rem;
+    }
+    
+    .badge-light {
+        color: #212529;
+        background-color: #f8f9fa;
+    }
 </style>
 {% endblock %}
 
@@ -351,10 +380,16 @@
         </div>        <div id="validation-results" style="display: none;"></div>        <div class="keyboard-hint">
             Atalhos: <kbd>Ctrl+Shift+F</kbd> Substituir| <kbd>Ctrl+Shift+V</kbd> Validar | <kbd>Ctrl+F</kbd> Buscar | <kbd>Ctrl+Q</kbd> Dobrar/Desdobrar seção
         </div>
+    </div>    <div id="alert-box" class="alert" style="display: none;"></div>
+      <div class="button-group">
+        <button id="save-button" class="btn" disabled>Salvar no Navegador</button>
+        <button id="sync-button" class="btn btn-secondary" disabled>Sincronizar com Servidor</button>
+        <button id="export-button" class="btn btn-outline-info">Exportar Currículos</button>
+        <button id="import-button" class="btn btn-outline-info">Importar Currículos</button>
+        <input type="file" id="import-file" accept=".json" style="display: none;">
     </div>
-
-    <div id="alert-box" class="alert" style="display: none;"></div>    <button id="save-button" class="btn" disabled>Salvar</button>
 </div>
 
+<script src="{{ url_for('static', filename='js/storage.js') }}"></script>
 <script src="{{ url_for('static', filename='js/edit_new.js') }}"></script>
 {% endblock %}

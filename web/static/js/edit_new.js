@@ -1,10 +1,9 @@
 // JavaScript para a página de edição
-document.addEventListener('DOMContentLoaded', function() {    
-    const languageSelect = document.getElementById('language-select');
+document.addEventListener('DOMContentLoaded', function() {      const languageSelect = document.getElementById('language-select');
     const jsonEditor = document.getElementById('json-editor');
     const saveButton = document.getElementById('save-button');
-    // Remover referência ao formatButton
-    const validateButton = document.getElementById('validate-button');    
+    const syncButton = document.getElementById('sync-button');
+    const validateButton = document.getElementById('validate-button');
     const alertBox = document.getElementById('alert-box');
     const jsonStats = document.getElementById('json-stats');
     const cursorInfo = document.getElementById('cursor-info');
@@ -117,15 +116,13 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.removeChild(tooltipElement);
             tooltipElement = null;
         }
-    });
-    
+    });    
     // Atualizar o valor do textarea quando o editor mudar
     editor.on('change', function() {
         jsonEditor.value = editor.getValue();
         updateJsonStats();
     });
-    
-    // Carregar o conteúdo do JSON quando um idioma for selecionado
+      // Carregar o conteúdo do JSON quando um idioma for selecionado
     languageSelect.addEventListener('change', function() {
         currentLanguage = languageSelect.value;        
         if (currentLanguage) {
@@ -134,24 +131,70 @@ document.addEventListener('DOMContentLoaded', function() {
             editor.setValue('');
             editor.setOption('readOnly', true);
             saveButton.disabled = true;
-            // Remover formatButton.disabled = true;
             validateButton.disabled = true;
             validationResults.style.display = 'none';
         }
     });
-    
-    // Função para buscar o conteúdo do JSON
+      // Função para buscar o conteúdo do JSON
     function fetchJsonContent(language) {        
         // Mostrar indicador de carregamento
         editor.setValue('Carregando...');
         editor.setOption('readOnly', true);
         saveButton.disabled = true;
-        // Remover formatButton.disabled = true;
         validateButton.disabled = true;
         validationResults.style.display = 'none';
         
         // Limpar marcadores de erro
-        clearErrorMarkers();            
+        clearErrorMarkers();
+        
+        // Verificar se temos o currículo no localStorage
+        const storedResume = getStoredResume(language);
+        
+        if (storedResume) {
+            console.log(`Currículo para ${language} carregado do localStorage`);
+            handleJsonLoaded(storedResume);
+            
+            // Carregar o schema para validação
+            loadSchemaForLanguage(language);
+            
+            // Verificar diferenças com a versão do servidor
+            checkServerDifferences(language);
+            
+            return;
+        }
+            
+        // Se não encontrou no localStorage, carregar do servidor
+        fetch('/get_json_content', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ language: language })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showAlert(data.error, 'danger');
+                editor.setValue('');
+            } else {
+                // Salvar no localStorage para uso futuro
+                storeResume(language, data.content);
+                handleJsonLoaded(data.content);
+                
+                // Carregar o schema para validação
+                loadSchemaForLanguage(language);
+            }
+        })
+        .catch(error => {
+            showAlert('Erro ao carregar o arquivo: ' + error, 'danger');
+            editor.setValue('');
+            editor.setOption('readOnly', true);
+            saveButton.disabled = true;
+            validateButton.disabled = true;        });
+    }
+    
+    // Função para carregar o schema para um idioma
+    function loadSchemaForLanguage(language) {
         // Carregar o schema correspondente ao idioma
         fetch(`/schemas/${language}`)
             .then(response => {
@@ -173,410 +216,69 @@ document.addEventListener('DOMContentLoaded', function() {
                         showAlert(`Erro ao compilar schema para validação: ${e.message}`, 'danger');
                     }
                 }
-                
-                // Agora buscar o conteúdo do JSON
-                return fetch('/get_json_content', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ language: language })
-                });
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    showAlert(data.error, 'danger');
-                    editor.setValue('');
-                } else {
-                    // Formatar o JSON para exibição
-                    const prettyJson = JSON.stringify(data.content, null, 2);
-                    editor.setValue(prettyJson);                    
-                    editor.setOption('readOnly', false);
-                    saveButton.disabled = false;
-                    // Remover formatButton.disabled = false;
-                    validateButton.disabled = false;
-                    
-                    // Executar o linting
-                    setTimeout(() => {
-                        editor.performLint();
-                    }, 100);
-                    
-                    updateJsonStats();
-                }
             })
             .catch(error => {
-                showAlert('Erro ao carregar o arquivo: ' + error, 'danger');
-                editor.setValue('');
-                editor.setOption('readOnly', true);
-                saveButton.disabled = true;
-                // Remover formatButton.disabled = true;
-                validateButton.disabled = true;
+                console.error(`Erro ao carregar schema para ${language}:`, error);
+                showAlert(`Erro ao carregar schema para validação: ${error}`, 'warning');
             });
     }
-    
-    // Atualizar estatísticas do JSON
+      // Função para processar o JSON carregado
+    function handleJsonLoaded(content) {
+        // Formatar o JSON para exibição
+        const prettyJson = JSON.stringify(content, null, 2);
+        editor.setValue(prettyJson);                    
+        editor.setOption('readOnly', false);
+        saveButton.disabled = false;
+        syncButton.disabled = false;
+        validateButton.disabled = false;
+        
+        // Executar o linting
+        setTimeout(() => {
+            editor.performLint();
+        }, 100);
+        
+        updateJsonStats();
+    }
+
+    // Função para atualizar estatísticas do JSON
     function updateJsonStats() {
         try {
-            const content = editor.getValue();
-            const jsonObj = JSON.parse(content);
-            
-            // Contar propriedades de primeiro nível
-            const topLevelProps = Object.keys(jsonObj).length;
-            
-            // Contar total de propriedades recursivamente
-            let totalProps = 0;
-            let nestedObjects = 0;
-            let nestedArrays = 0;
-            
-            function countProps(obj) {
-                if (Array.isArray(obj)) {
-                    nestedArrays++;
-                    obj.forEach(item => {
-                        if (typeof item === 'object' && item !== null) {
-                            countProps(item);
-                        }
-                    });
-                } else if (typeof obj === 'object' && obj !== null) {
-                    const keys = Object.keys(obj);
-                    totalProps += keys.length;
-                    
-                    keys.forEach(key => {
-                        if (typeof obj[key] === 'object' && obj[key] !== null) {
-                            nestedObjects++;
-                            countProps(obj[key]);
-                        }
-                    });
-                }
-            }
-            
-            countProps(jsonObj);
-            
-            jsonStats.innerHTML = `Propriedades: ${topLevelProps} (total: ${totalProps}) | Objetos: ${nestedObjects} | Arrays: ${nestedArrays}`;
-        } catch (e) {
-            jsonStats.innerHTML = 'JSON inválido';
-        }
-    }
-    
-    // Atualizar informações da posição do cursor
-    editor.on('cursorActivity', function() {
-        const cursor = editor.getCursor();
-        const token = editor.getTokenAt(cursor);
-        const lineContent = editor.getLine(cursor.line);
-        
-        // Identificar o tipo de token sob o cursor
-        let tokenType = 'texto';
-        if (token.type) {
-            if (token.type.includes('property')) tokenType = 'chave';
-            else if (token.type.includes('string')) tokenType = 'texto';
-            else if (token.type.includes('number')) tokenType = 'número';
-            else if (token.type.includes('atom') && (token.string === 'true' || token.string === 'false')) tokenType = 'booleano';
-            else if (token.type.includes('atom') && token.string === 'null') tokenType = 'nulo';
-            else if (token.type.includes('bracket')) tokenType = token.string === '{' || token.string === '}' ? 'objeto' : 'array';
-        }
-        
-        // Adicionar classes especiais para null e boolean (para colorir diferente)
-        if (tokenType === 'booleano') {
-            editor.addOverlay({
-                token: function(stream) {
-                    if (stream.match(/true|false/, true)) return "json-boolean";
-                    stream.next();
-                    return null;
-                }
-            });
-        } else if (tokenType === 'nulo') {
-            editor.addOverlay({
-                token: function(stream) {
-                    if (stream.match(/null/, true)) return "json-null";
-                    stream.next();
-                    return null;
-                }
-            });
-        }
-        
-        cursorInfo.innerHTML = `Linha: ${cursor.line + 1}, Coluna: ${cursor.ch + 1} | Tipo: ${tokenType}`;
-    });
-    
-    // Manter apenas a função de validação
-    function validateJson() {
-        const editor = window.editor;
-        const jsonContent = editor.getValue();
-        const selectedLanguage = document.getElementById('language-select').value;
-        
-        // Verificar se um idioma está selecionado
-        if (!selectedLanguage) {
-            showAlert("Por favor, selecione um idioma primeiro.");
-            return;
-        }
-        
-        try {
-            // Tentar analisar o JSON
-            const parsedJson = JSON.parse(jsonContent);
-            
-            // Limpar erros anteriores
-            clearErrorMarkers();
-            
-            // Buscar o schema de validação para este idioma
-            fetch(`/schemas/${selectedLanguage}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(schema => {
-                    console.log("Schema carregado:", schema);
-                    
-                    // Validar com Ajv
-                    const ajv = new Ajv({allErrors: true});
-                    const validate = ajv.compile(schema);
-                    const valid = validate(parsedJson);
-                    
-                    const validateButton = document.getElementById('validate-button');
-                    
-                    if (valid) {
-                        validateButton.classList.add('valid');
-                        validateButton.classList.remove('invalid');
-                        showValidationResults([], true);
-                    } else {
-                        validateButton.classList.add('invalid');
-                        validateButton.classList.remove('valid');
-                        showValidationResults(validate.errors, false);
-                    }
-                })
-                .catch(error => {
-                    console.error("Erro ao buscar schema:", error);
-                    showAlert("Schema de validação não disponível para este idioma");
-                });
-        } catch (e) {
-            console.error("Erro ao analisar JSON:", e);
-            showAlert("JSON inválido: " + e.message);
-        }
-    }
-    
-    // Validar JSON contra o schema
-    validateButton.addEventListener('click', function() {
-        try {
-            const content = editor.getValue();
-            const jsonObj = JSON.parse(content);
-            
-            // Limpar marcadores de erro anteriores
-            clearErrorMarkers();
-            
-            // Verificar se temos o validador e o schema
-            if (!validateFn || !currentSchema) {
-                showAlert('Schema de validação não disponível para este idioma', 'danger');
+            const jsonContent = editor.getValue();
+            if (!jsonContent.trim()) {
+                jsonStats.textContent = 'Vazio';
                 return;
             }
             
-            // Executar a validação
-            const valid = validateFn(jsonObj);
-              if (valid) {
-                // JSON válido de acordo com o schema
-                validationResults.innerHTML = '<div class="validation-success">O JSON é válido e atende a todos os requisitos do schema.</div>';
-                validationResults.style.display = 'block';
-                validateButton.classList.add('valid');
-                validateButton.classList.remove('invalid');
-                
-                // Limpar mensagem após alguns segundos
-                setTimeout(() => {
-                    validationResults.style.display = 'none';
-                    validateButton.classList.remove('valid');
-                }, 5000);
-            } else {
-                // JSON inválido - mostrar erros
-                validateButton.classList.add('invalid');
-                validateButton.classList.remove('valid');
-                
-                const errors = validateFn.errors || [];
-                
-                let errorHtml = '<div class="validation-error">';
-                errorHtml += `<div><span class="error-count">${errors.length}</span><strong>Erro${errors.length > 1 ? 's' : ''} de validação encontrado${errors.length > 1 ? 's' : ''}:</strong></div>`;
-                
-                // Formatar mensagens de erro
-                errors.forEach((error, index) => {
-                    const path = error.instancePath || '';
-                    const property = error.params.missingProperty ? `"${error.params.missingProperty}"` : 
-                                    error.params.additionalProperty ? `"${error.params.additionalProperty}"` : '';
-                    const message = error.message || '';
-                    
-                    // Determinar o tipo de erro
-                    let errorType = 'Erro';
-                    if (error.keyword === 'required') errorType = 'Obrigatório';
-                    else if (error.keyword === 'type') errorType = 'Tipo Inválido';
-                    else if (error.keyword === 'format') errorType = 'Formato';
-                    else if (error.keyword === 'pattern') errorType = 'Padrão';
-                    else if (error.keyword === 'enum') errorType = 'Valor';
-                    else if (error.keyword === 'additionalProperties') errorType = 'Prop. Adicional';
-                    
-                    // Formatar o caminho para facilitar a leitura
-                    const displayPath = path.replace(/^\//, '').replace(/\//g, '.') || 'raiz';
-                    
-                    errorHtml += `<div class="error-detail">
-                        <span class="error-type">${errorType}</span>
-                        <strong>${displayPath}</strong> ${property ? `propriedade: ${property}` : ''} 
-                        <span>${message}</span>
-                    </div>`;
-                    
-                    // Tentar encontrar a linha correspondente ao erro
-                    highlightErrorInEditor(path, property, error);
-                });
-                
-                errorHtml += '</div>';
-                validationResults.innerHTML = errorHtml;
-                validationResults.style.display = 'block';
-            }
+            const parsed = JSON.parse(jsonContent);
+            const bytes = new TextEncoder().encode(jsonContent).length;
+            const formattedSize = bytes < 1024 
+                ? `${bytes} bytes` 
+                : `${(bytes / 1024).toFixed(1)} KB`;
+            
+            // Contar chaves de primeiro nível
+            const topLevelKeys = Object.keys(parsed).length;
+            
+            jsonStats.textContent = `${formattedSize} | ${topLevelKeys} chaves`;
         } catch (e) {
-            showAlert('Erro ao validar JSON: ' + e.message, 'danger');
-        }
-    });
-      // Função para limpar marcadores de erro
-    function clearErrorMarkers() {
-        errorMarkers.forEach(marker => marker.clear());
-        errorMarkers = [];
-        
-        // Limpar todos os marcadores do gutter
-        for (let i = 0; i < editor.lineCount(); i++) {
-            editor.setGutterMarker(i, 'CodeMirror-lint-markers', null);
-        }
-        
-        validateButton.classList.remove('valid', 'invalid');
-        validationResults.style.display = 'none';
-    }
-      // Função para destacar erros no editor
-    function highlightErrorInEditor(path, property, error) {
-        try {
-            const content = editor.getValue();
-            const lines = content.split('\n');
-            
-            // Caminho normalizado para pesquisa
-            const searchPath = path.replace(/^\//, '').replace(/\//g, '.');
-            const searchProperty = property.replace(/"/g, '');
-            
-            let found = false;
-            
-            // Primeiro, tentar uma correspondência exata do caminho
-            if (searchPath || searchProperty) {
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    
-                    // Verificar se a linha contém o caminho ou propriedade
-                    const containsPath = searchPath && line.includes(`"${searchPath.split('.').pop()}"`);
-                    const containsProperty = searchProperty && line.includes(`"${searchProperty}"`);
-                    
-                    if (containsPath || containsProperty) {
-                        // Marcar a linha com erro
-                        const marker = editor.markText(
-                            {line: i, ch: 0},
-                            {line: i, ch: line.length},
-                            {className: 'cm-error-line'}
-                        );
-                        
-                        errorMarkers.push(marker);
-                        
-                        // Adicionar marcador no gutter
-                        const errorMarkerElement = document.createElement('div');
-                        errorMarkerElement.className = 'cm-error-marker';
-                        errorMarkerElement.title = error.message || 'Erro de validação';
-                        editor.setGutterMarker(i, 'CodeMirror-lint-markers', errorMarkerElement);
-                        
-                        // Se for o primeiro erro, rolar para ele
-                        if (errorMarkers.length === 1) {
-                            editor.scrollIntoView({line: Math.max(0, i-2), ch: 0}, 100);
-                        }
-                        
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            
-            // Se não encontrou por correspondência exata, tente encontrar seções relevantes
-            if (!found && error.keyword === 'required') {
-                const parentPath = searchPath.split('.').slice(0, -1).join('.');
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    
-                    // Verificar se a linha corresponde ao objeto pai onde falta a propriedade
-                    if (parentPath && line.includes(`"${parentPath.split('.').pop()}"`)) {
-                        // Encontrar o escopo do objeto (abertura e fechamento de chaves)
-                        let openBraces = 0;
-                        let closeBraces = 0;
-                        let startLine = i;
-                        let endLine = i;
-                        
-                        // Procurar a abertura de chaves
-                        for (let j = i; j < lines.length; j++) {
-                            if (lines[j].includes('{')) {
-                                openBraces++;
-                                endLine = j;
-                                break;
-                            }
-                        }
-                        
-                        // Procurar o fechamento correspondente
-                        for (let j = endLine + 1; j < lines.length; j++) {
-                            if (lines[j].includes('{')) openBraces++;
-                            if (lines[j].includes('}')) closeBraces++;
-                            
-                            if (openBraces === closeBraces) {
-                                endLine = j;
-                                break;
-                            }
-                        }
-                        
-                        // Marcar todo o objeto
-                        const marker = editor.markText(
-                            {line: startLine, ch: 0},
-                            {line: endLine, ch: lines[endLine].length},
-                            {className: 'cm-error-line'}
-                        );
-                        
-                        errorMarkers.push(marker);
-                        
-                        // Rolar para o início do objeto
-                        if (errorMarkers.length === 1) {
-                            editor.scrollIntoView({line: Math.max(0, startLine-2), ch: 0}, 100);
-                        }
-                        
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            
-            // Se ainda não encontrou, tente outras estratégias
-            if (!found) {
-                // Para erros de tipo, tente encontrar o valor com tipo incorreto
-                if (error.keyword === 'type') {
-                    const fieldName = searchPath.split('.').pop();
-                    
-                    for (let i = 0; i < lines.length; i++) {
-                        if (lines[i].includes(`"${fieldName}"`)) {
-                            // Marcar a linha
-                            const marker = editor.markText(
-                                {line: i, ch: 0},
-                                {line: i, ch: lines[i].length},
-                                {className: 'cm-error-line'}
-                            );
-                            
-                            errorMarkers.push(marker);
-                            
-                            if (errorMarkers.length === 1) {
-                                editor.scrollIntoView({line: Math.max(0, i-2), ch: 0}, 100);
-                            }
-                            
-                            break;
-                        }
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('Erro ao destacar erro no editor:', e);
+            jsonStats.textContent = 'JSON inválido';
         }
     }
     
+    // Função para limpar marcadores de erro
+    function clearErrorMarkers() {
+        // Limpar marcadores de erro anteriores
+        for (let marker of errorMarkers) {
+            marker.clear();
+        }
+        errorMarkers = [];
+        
+        // Limpar área de resultados de validação
+        if (validationResults) {
+            validationResults.innerHTML = '';
+            validationResults.style.display = 'none';
+        }
+    }
+
     // Salvar o JSON quando o botão for clicado
     saveButton.addEventListener('click', function() {
         const jsonContent = editor.getValue();
@@ -588,48 +290,68 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Verificar se o JSON é válido
         try {
-            const jsonObj = JSON.parse(jsonContent);
+            const parsedJson = JSON.parse(jsonContent);
             
-            // Validar contra o schema
-            if (validateFn) {
-                const valid = validateFn(jsonObj);
-                if (!valid) {
-                    const shouldProceed = confirm('O JSON contém erros de validação. Deseja salvar mesmo assim?');
-                    if (!shouldProceed) {
-                        validateButton.click(); // Mostrar erros
-                        return;
-                    }
-                }
+            // Salvar no localStorage
+            if (storeResume(currentLanguage, parsedJson)) {
+                showAlert('JSON salvo com sucesso no navegador!', 'success');
+            } else {
+                showAlert('Erro ao salvar no navegador.', 'danger');
             }
-            
-            // Enviar o JSON para o servidor
-            fetch('/save_json', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    language: currentLanguage,
-                    content: jsonContent
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    showAlert(data.error, 'danger');
-                } else {
-                    showAlert(data.message, 'success');
-                }
-            })
-            .catch(error => {
-                showAlert('Erro ao salvar o arquivo: ' + error, 'danger');
-            });
         } catch (e) {
             showAlert('JSON inválido: ' + e.message, 'danger');
             return;
         }
-    });   
-   
+    });
+      // Sincronizar com o servidor quando o botão for clicado
+    syncButton.addEventListener('click', function() {
+        if (!currentLanguage) {
+            showAlert('Selecione um idioma para sincronizar', 'danger');
+            return;
+        }
+        
+        // Verificar se temos o currículo no localStorage
+        const storedResume = getStoredResume(currentLanguage);
+        
+        if (!storedResume) {
+            showAlert('Nenhum currículo encontrado para sincronizar', 'danger');
+            return;
+        }
+        
+        // Mostrar indicador de carregamento
+        syncButton.innerHTML = '<span class="loading"></span> Sincronizando...';
+        syncButton.disabled = true;
+        
+        // Enviar o JSON para o servidor
+        fetch('/save_json', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                language: currentLanguage,
+                content: storedResume
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showAlert(`Erro ao sincronizar: ${data.error}`, 'danger');
+            } else {
+                showAlert('JSON sincronizado com sucesso com o servidor!', 'success');
+                
+                // Resetar o estilo do botão de sincronização
+                syncButton.classList.remove('btn-warning');
+                syncButton.textContent = 'Sincronizar com Servidor';
+            }
+        })
+        .catch(error => {
+            showAlert('Erro ao sincronizar: ' + error, 'danger');
+        })
+        .finally(() => {
+            syncButton.disabled = false;
+        });    });
+
 
     // Limpar erro quando idioma mudar
     languageSelect.addEventListener('change', function() {
@@ -637,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Função para exibir alertas
-    function showAlert(message, type) {
+    function showAlert(message, type, timeout) {
         alertBox.innerHTML = message;
         alertBox.className = `alert alert-${type}`;
         alertBox.style.display = 'block';
@@ -645,7 +367,43 @@ document.addEventListener('DOMContentLoaded', function() {
         // Esconder a mensagem após 5 segundos
         setTimeout(function() {
             alertBox.style.display = 'none';
-        }, 5000);
+        }, timeout || 5000);
+    }
+    
+    // Verificar diferenças entre versões locais e do servidor
+    function checkServerDifferences(language) {
+        // Buscar a versão do servidor para comparação
+        fetch('/get_json_content', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ language: language })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Erro ao verificar diferenças:', data.error);
+                return;
+            }
+            
+            // Verificar se a versão local é diferente da do servidor
+            const storedResume = getStoredResume(language);
+            if (storedResume && isLocalDifferentFromServer(language, data.content)) {
+                // Atualizar o estilo do botão de sincronização para indicar diferenças
+                syncButton.classList.add('btn-warning');
+                syncButton.innerHTML = 'Sincronizar <span class="badge badge-light">!</span>';
+                
+                // Mostrar uma dica sobre as diferenças
+                showAlert('Existem diferenças entre sua versão local e a do servidor. Clique em "Sincronizar" para atualizar.', 'warning', 10000);
+            } else {
+                syncButton.classList.remove('btn-warning');
+                syncButton.textContent = 'Sincronizar com Servidor';
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao verificar diferenças:', error);
+        });
     }
     
     // Trigger change event to load JSON if language is pre-selected
@@ -661,5 +419,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 validateButton.click();
             }
         }
+    });
+
+    // Exportar currículos quando o botão for clicado
+    const exportButton = document.getElementById('export-button');
+    exportButton.addEventListener('click', function() {
+        if (downloadStoredData()) {
+            showAlert('Currículos exportados com sucesso!', 'success');
+        } else {
+            showAlert('Erro ao exportar currículos.', 'danger');
+        }
+    });
+    
+    // Importar currículos quando o botão for clicado
+    const importButton = document.getElementById('import-button');
+    const importFile = document.getElementById('import-file');
+    
+    importButton.addEventListener('click', function() {
+        importFile.click();
+    });
+    
+    importFile.addEventListener('change', function() {
+        if (this.files.length === 0) return;
+        
+        const file = this.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            try {
+                const importData = JSON.parse(e.target.result);
+                
+                if (importStoredData(importData)) {
+                    showAlert('Currículos importados com sucesso!', 'success');
+                    
+                    // Recarregar o idioma atual, se houver
+                    if (currentLanguage) {
+                        fetchJsonContent(currentLanguage);
+                    }
+                } else {
+                    showAlert('Erro ao importar currículos. Formato inválido.', 'danger');
+                }
+            } catch (e) {
+                showAlert('Erro ao importar arquivo: ' + e.message, 'danger');
+            }
+            
+            // Limpar o input
+            importFile.value = '';
+        };
+        
+        reader.readAsText(file);
     });
 });

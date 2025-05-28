@@ -66,6 +66,7 @@ def get_jobs(section_data, jobs_keys=['empregos', 'jobs', 'empleos', 'emplois'])
 parser = argparse.ArgumentParser(description='Gerar currículo em formato PDF.')
 parser.add_argument('language', nargs='?', help='Código do idioma (ex: pt, en, es)')
 parser.add_argument('--template', '-t', help='Nome do template a ser usado', default='pdf')
+parser.add_argument('--json-file', help='Caminho para um arquivo JSON personalizado', default=None)
 args = parser.parse_args()
 
 # Função para listar idiomas disponíveis
@@ -114,14 +115,25 @@ if args.language:
         selected_lang = lang_arg
 
 # Se não houver idiomas disponíveis, terminar o programa
-if not selected_lang:
+if not selected_lang and not args.json_file:
     print("Erro: Não foram encontrados arquivos de idioma válidos.")
     sys.exit(1)
 
-# Carregar o arquivo JSON do idioma selecionado
-json_file = available_languages[selected_lang]['file']
-with open(json_file, 'r', encoding='utf-8') as file:
-    data = json.load(file)
+# Carregar o arquivo JSON
+if args.json_file:
+    print(f"Usando arquivo JSON personalizado: {args.json_file}")
+    # Usar o arquivo JSON personalizado
+    try:
+        with open(args.json_file, 'r', encoding='utf-8') as file:
+            data = json.load(file)
+    except Exception as e:
+        print(f"Erro ao carregar arquivo JSON personalizado: {str(e)}")
+        sys.exit(1)
+else:
+    # Carregar o arquivo JSON do idioma selecionado
+    json_file = available_languages[selected_lang]['file']
+    with open(json_file, 'r', encoding='utf-8') as file:
+        data = json.load(file)
 
 # Extrair dados básicos do JSON
 # Estrutura padronizada para todas as línguas

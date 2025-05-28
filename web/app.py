@@ -411,6 +411,7 @@ def generate_pdf():
         language = data.get('language')
         format_type = data.get('format')
         template = data.get('template', None)
+        content = data.get('content', None)  # Novo: conteúdo JSON do currículo
         
         if not language or not format_type:
             return jsonify({'error': 'Dados incompletos'}), 400
@@ -429,8 +430,23 @@ def generate_pdf():
                 
             print(f"Script selecionado: {script}")
             
-            # Preparar os argumentos
-            cmd = [sys.executable, script, language]
+            # Se o conteúdo foi enviado diretamente, salvar em um arquivo temporário
+            temp_json_file = None
+            if content:
+                print("Usando conteúdo JSON enviado pelo cliente")
+                import tempfile
+                
+                # Criar arquivo temporário com o conteúdo JSON
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{language}.json', mode='w', encoding='utf-8')
+                json.dump(content, temp_file)
+                temp_file.close()
+                temp_json_file = temp_file.name
+                
+                # Ajustar os argumentos para usar o arquivo temporário
+                cmd = [sys.executable, script, language, '--json-file', temp_json_file]
+            else:
+                # Preparar os argumentos normais
+                cmd = [sys.executable, script, language]
             
             # Se um template específico foi selecionado, adicioná-lo aos argumentos
             if template and template != format_type:
@@ -445,9 +461,16 @@ def generate_pdf():
                 cmd.extend(['--template', format_type])
                 
             print(f"Comando: {' '.join(cmd)}")
-            
-            # Executar o script Python
+              # Executar o script Python
             result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            # Limpar arquivo temporário se foi criado
+            if 'temp_json_file' in locals() and temp_json_file and os.path.exists(temp_json_file):
+                try:
+                    os.unlink(temp_json_file)
+                    print(f"Arquivo temporário excluído: {temp_json_file}")
+                except Exception as e:
+                    print(f"Erro ao excluir arquivo temporário: {str(e)}")
             
             if result.returncode != 0:
                 print(f"Erro ao gerar currículo: {result.stderr}")
