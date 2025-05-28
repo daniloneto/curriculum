@@ -113,6 +113,7 @@ def extract_keywords_from_resume(resume_text, min_length=4):
 parser = argparse.ArgumentParser(description='Gerar currículo em formato PDF otimizado para ATS.')
 parser.add_argument('language', nargs='?', help='Código do idioma (ex: pt, en, es)')
 parser.add_argument('--template', '-t', help='Nome do template a ser usado', default='pdf_ats')
+parser.add_argument('--json-file', help='Caminho para um arquivo JSON personalizado', default=None)
 args = parser.parse_args()
 
 # Função para listar idiomas disponíveis
@@ -161,14 +162,25 @@ if args.language:
         selected_lang = lang_arg
 
 # Se não houver idiomas disponíveis, terminar o programa
-if not selected_lang:
+if not selected_lang and not args.json_file:
     print("Erro: Não foram encontrados arquivos de idioma válidos.")
     sys.exit(1)
 
-# Carregar o arquivo JSON do idioma selecionado
-json_file = available_languages[selected_lang]['file']
-with open(json_file, 'r', encoding='utf-8') as file:
-    data = json.load(file)
+# Carregar o arquivo JSON
+if args.json_file:
+    print(f"Usando arquivo JSON personalizado: {args.json_file}")
+    # Usar o arquivo JSON personalizado
+    try:
+        with open(args.json_file, 'r', encoding='utf-8') as file:
+            data = json.load(file)
+    except Exception as e:
+        print(f"Erro ao carregar arquivo JSON personalizado: {str(e)}")
+        sys.exit(1)
+else:
+    # Carregar o arquivo JSON do idioma selecionado
+    json_file = available_languages[selected_lang]['file']
+    with open(json_file, 'r', encoding='utf-8') as file:
+        data = json.load(file)
 
 # Extrair dados básicos do JSON
 # Estrutura padronizada para todas as línguas
@@ -261,30 +273,76 @@ if experience_section:
     
     # Adicionar empregos no formato otimizado para ATS
     for job in jobs:
-        position = get_field(job, 'cargo', 'position')
-        company = ""  # Na estrutura atual não há empresa separada do cargo
+        position_raw = get_field(job, 'cargo', 'position') # e.g., "Senior Development Consultant - Avanade"
         period = get_field(job, 'periodo', 'period')
+
+        position = position_raw
+        company = get_field(job, 'empresa', 'company') # Try dedicated field first
+
+        if not company and position_raw and ' - ' in position_raw: # If no dedicated company field, parse from position_raw
+            parts = position_raw.split(' - ', 1)
+            position = parts[0].strip()
+            company = parts[1].strip()
+        elif not company: # Ensure company is an empty string if not found/parsed
+            company = ""
         
         # Obter descrição - procurar por várias possíveis chaves
-        description_items = []
+        description_content = None # Initialize to None
         for key in ['descricao', 'description', 'descripcion']:
             if key in job:
-                description_items = job[key]
+                description_content = job[key]
                 break
         
+        # Define localized labels
+        if selected_lang == 'en':
+            labels = {
+                "position": "Position",
+                "company": "Company",
+                "period": "Period",
+                "description_heading": "Responsibilities and Achievements"
+            }
+        elif selected_lang == 'es':
+            labels = {
+                "position": "Cargo", # Or "Puesto"
+                "company": "Empresa",
+                "period": "Período",
+                "description_heading": "Responsabilidades y Logros"
+            }
+        else: # Default to Portuguese
+            labels = {
+                "position": "Cargo",
+                "company": "Empresa",
+                "period": "Período",
+                "description_heading": "Responsabilidades e Realizações"
+            }
+
         # Usar a função especializada do template ATS
         if hasattr(template, 'add_job_experience'):
-            template.add_job_experience(elements, position, company, period, description_items, styles)
+            template.add_job_experience(elements, position, company, period, description_content, styles, labels)
         else:
             # Fallback caso o template não tenha a função especializada
             if position:
-                elements.append(Paragraph(f"<b>{position}</b>", styles['bullet']))
+                elements.append(Paragraph(f"<b>{labels['position']}:</b> {position}", styles['bullet'])) # Use localized label
             
+            if company:
+                 elements.append(Paragraph(f"<b>{labels['company']}:</b> {company}", styles['normal']))
+
             if period:
-                elements.append(Paragraph(period, styles['normal']))
+                elements.append(Paragraph(f"<b>{labels['period']}:</b> {period}", styles['normal'])) # Use localized label
             
-            for item in description_items:
-                elements.append(Paragraph(f"- {item}", styles['bullet']))
+            # Fallback description handling (simplified)
+            processed_desc_items = []
+            if isinstance(description_content, str):
+                processed_desc_items = [s.strip() for s in description_content.split('\\n') if s.strip()]
+                if not processed_desc_items and description_content.strip():
+                    processed_desc_items = [description_content.strip()]
+            elif isinstance(description_content, list):
+                processed_desc_items = [str(item).strip() for item in description_content if str(item).strip()]
+
+            if processed_desc_items:
+                elements.append(Paragraph(f"<b>{labels['description_heading']}:</b>", styles['normal'])) # Use localized label
+                for item_text in processed_desc_items:
+                    elements.append(Paragraph(f"- {item_text}", styles['bullet']))
                 
             elements.append(Spacer(1, 0.1*inch))
 
@@ -320,31 +378,53 @@ if keywords and hasattr(template, 'add_keywords_section'):
 template.add_page_break(elements)
 
 # Habilidades Técnicas - procurar por várias possíveis chaves
-skills_section = None
-for key in ['habilidadesTecnicas', 'technicalSkills', 'habilidadesTecnicas', 'competencesTechniques']:
+skills_section_content = None
+# Use a set for unique keys and then convert to list if necessary for order, or just iterate the set
+unique_skill_section_keys = {'habilidadesTecnicas', 'technicalSkills', 'competencesTechniques'}
+for key in unique_skill_section_keys:
     if key in secoes:
-        skills_section = secoes[key]
+        skills_section_content = secoes[key]
         break
 
-if skills_section:
-    template.add_section_title(elements, get_section_title(skills_section), styles)
+if skills_section_content:
+    template.add_section_title(elements, get_section_title(skills_section_content), styles)
     
-    # Obter lista de habilidades
-    skills = []
-    for key in ['habilidades', 'skills', 'habilidades', 'competences']:
-        if key in skills_section:
-            skills = skills_section[key]
-            break
+    skill_objects_list = [] # This will hold the list of skill *objects*
+
+    if isinstance(skills_section_content, dict):
+        # Typical case: skills_section_content is an object like {"titulo": "...", "habilidades": [...]}
+        found_list = False
+        unique_skill_list_keys = {'habilidades', 'skills', 'competencias'}
+        for list_key in unique_skill_list_keys:
+            if list_key in skills_section_content and isinstance(skills_section_content[list_key], list):
+                skill_objects_list = skills_section_content[list_key]
+                found_list = True
+                break
+        if not found_list:
+            # If no list found under standard keys, it might be a single skill object.
+            if 'nombre' in skills_section_content and 'nivel' in skills_section_content:
+                 # Check it's not a container object with a title etc.
+                if not any(k in skills_section_content for k in ['titulo', 'title'] + list(unique_skill_list_keys)):
+                    skill_objects_list = [skills_section_content] # Treat as a list with one skill
+    elif isinstance(skills_section_content, list):
+        # Case: skills_section_content is directly a list of skill objects
+        skill_objects_list = skills_section_content
     
-    for skill in skills:
-        skill_name = get_field(skill, 'nome', 'name')
-        skill_level = get_field(skill, 'nivel', 'level')
-        if skill_name and skill_level:
-            # Use add_skill para o template ATS, que será redirecionado para add_skill_bar na interface comum
-            if hasattr(template, 'add_skill'):
-                template.add_skill(elements, skill_name, styles, skill_level)
-            else:
-                template.add_skill_bar(elements, skill_name, styles, skill_level)
+    for skill_item in skill_objects_list:
+        if not isinstance(skill_item, dict):
+            print(f"Aviso (ATS PDF): Item de habilidade não é um dicionário: {skill_item}. Pulando.")
+            continue
+        skill_name = get_field(skill_item, 'nombre', 'name')
+        skill_level_str = get_field(skill_item, 'nivel', 'level') # Get level as string
+        if skill_name and skill_level_str:
+            try:
+                skill_level = int(skill_level_str) # Convert to int
+                if hasattr(template, 'add_skill'):
+                    template.add_skill(elements, skill_name, styles, skill_level, lang=selected_lang) # Pass selected_lang
+                elif hasattr(template, 'add_skill_bar'): 
+                    template.add_skill_bar(elements, skill_name, styles, skill_level)
+            except ValueError:
+                print(f"Aviso (ATS PDF): Nível de habilidade inválido para '{skill_name}'. Esperado um número, recebido '{skill_level_str}'. Pulando.")
     
     elements.append(Spacer(1, 0.1*inch))
 

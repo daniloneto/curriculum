@@ -1,62 +1,90 @@
-# Sistema de Geração de Currículos Multilíngue com otimização para ATS
+# Sistema de Geração de Currículos Multilíngue com otimização para ATS e Interface Web
 
-Este projeto é um sistema completo para geração de currículos em formato DOCX e PDF a partir de arquivos JSON estruturados, com suporte para múltiplos idiomas e layouts personalizáveis. O sistema permite criar currículos profissionais rapidamente em diversos formatos e idiomas.
+Este projeto é um sistema completo para geração de currículos em formato DOCX e PDF a partir de arquivos JSON estruturados ou dados inseridos via interface web. Oferece suporte para múltiplos idiomas, layouts personalizáveis, e uma interface web amigável para cadastro, edição e geração de currículos.
 
 ## Recursos
 
-- **Múltiplos formatos**: Geração de currículos em formato DOCX e PDF
-- **Internacionalização**: Suporte para múltiplos idiomas com detecção automática
-- **Personalização**: Sistema de templates para layouts diferenciados
-- **Interface amigável**: Menu interativo para seleção de idioma, formato e template
+- **Múltiplos formatos**: Geração de currículos em formato DOCX e PDF (Moderno e Otimizado para ATS).
+- **Internacionalização**: Suporte para múltiplos idiomas (Português, Inglês, Espanhol) com arquivos JSON dedicados e formulários dinâmicos.
+- **Personalização**: Sistema de templates para layouts diferenciados.
+- **Interface Web Interativa (Flask & JavaScript)**:
+    - **`/generate` (Gerar Currículo)**: Página principal para selecionar idioma, tipo de currículo (Moderno, ATS, DOCX) e gerar o documento. Utiliza dados do `localStorage` (se disponíveis e preenchidos via `/cadastrar`) ou arquivos JSON de exemplo.
+    - **`/cadastrar` (Cadastrar/Editar Currículo)**:
+        - Permite ao usuário selecionar o idioma desejado.
+        - Carrega dinamicamente um formulário com abas, baseado na estrutura do arquivo JSON de schema correspondente ao idioma (e.g., `web/static/schemas/schema_pt.json`).
+        - Cada seção principal do schema (como "Resumo Profissional", "Experiência Laboral") é apresentada em uma aba separada.
+        - Campos são gerados dinamicamente.
+        - Dados inseridos/editados são salvos no `localStorage` do navegador, associados ao idioma selecionado. Esta página serve tanto para cadastro inicial quanto para edição dos dados já presentes no `localStorage`.
+    - **`/edit` (Editar JSON do LocalStorage - Avançado)**: Permite a visualização e edição direta do JSON bruto armazenado no `localStorage` para um idioma específico. Útil para ajustes finos ou correções que não são facilmente realizáveis pelo formulário dinâmico.
+- **Interface de Linha de Comando (CLI)**: Menu interativo para seleção de idioma, formato e template para geração de currículos via terminal (legado, mas funcional).
 - **Design profissional**: 
   - Fontes elegantes e adequadas para currículos
   - Elementos visuais como ícones e indicadores de nível de habilidade (barras ou quadradinhos)
   - Formatação profissional com seções bem definidas
   - Quebras de página automáticas para melhor organização
 
+## Interface Web - CV Generator
 
-## Deploy no Render (Cloud)
+Esta interface web fornece uma maneira fácil e intuitiva de cadastrar, editar dados de currículo e gerar PDFs/DOCXs a partir deles.
 
-Você pode hospedar esta aplicação gratuitamente na nuvem usando o [Render](https://render.com/).
+### Iniciando a Interface Web
 
-### Passo a Passo
+Para iniciar a interface web, execute o seguinte comando na raiz do projeto:
 
-1. **Acesse o site do Render**
-   - Entre em [https://render.com/](https://render.com/) e clique em **Sign Up** para criar uma conta gratuita (pode usar login do GitHub).
+```bash
+# Certifique-se de que todas as dependências estão instaladas
+pip install -r requirements.txt
 
-2. **Conecte seu GitHub**
-   - Após criar a conta, conecte o Render ao seu GitHub (será solicitado na primeira criação de serviço).
+# Execute o servidor Flask
+python ./web/app.py
+```
 
-3. **Faça o push do seu projeto para o GitHub**
-   - Certifique-se de que todo o código está em um repositório no GitHub.
+Após executar este comando, abra seu navegador e acesse:
+`http://127.0.0.1:5000/`
 
-4. **Crie um novo Web Service**
-   - No painel do Render, clique em **New +** > **Web Service**.
-   - Escolha o repositório do seu projeto.
+### Funcionalidades da Interface Web:
 
-5. **Configure o serviço**
-   - **Branch:** escolha a branch principal (geralmente `main` ou `master`).
-   - **Build Command:**  
-     ```
-     pip install -r requirements.txt
-     ```
-   - **Start Command:**  
-     ```
-     gunicorn wsgi:app
-     ```
-     (ou `gunicorn web.app:app` se não usar wsgi.py)
-   - **Environment:** escolha Python 3.x
+- **`/generate` (Gerar Currículo)**:
+    - Página principal para geração de documentos.
+    - Selecione o idioma.
+    - Escolha o tipo de currículo: PDF Moderno, PDF ATS, ou DOCX.
+    - Clique em "Gerar". O sistema usará os dados do `localStorage` para o idioma selecionado (se existirem e tiverem sido preenchidos via `/cadastrar`). Caso contrário, pode recorrer a arquivos JSON de exemplo no servidor.
+    - O download do arquivo será iniciado automaticamente.
 
-6. **Variáveis de ambiente (opcional)**
-   - Adicione a variável `FLASK_ENV=production`
+- **`/cadastrar` (Cadastrar ou Editar Dados do Currículo)**:
+    - Selecione o idioma para o qual deseja cadastrar ou editar informações.
+    - Um formulário dinâmico com abas será apresentado, baseado no schema JSON do idioma.
+        - **Exemplo de Abas**: "Dados Pessoais", "Resumo Profissional", "Experiência Laboral", "Habilidades Técnicas", "Educação", "Certificações", etc.
+    - Preencha ou modifique os campos conforme necessário.
+    - Ao clicar em "Salvar no Navegador", os dados são armazenados/atualizados no `localStorage` do seu navegador, separados por idioma.
+    - Esta é a forma principal e recomendada para inserir e manter os dados do seu currículo.
 
-7. **Clique em "Create Web Service"**
-   - O Render irá instalar as dependências, buildar e rodar o app automaticamente.
+- **`/edit` (Editar JSON Bruto do LocalStorage - Uso Avançado)**:
+    - Permite selecionar um idioma.
+    - Visualiza e permite editar diretamente a estrutura JSON que está salva no `localStorage` para aquele idioma.
+    - Útil para usuários avançados que precisam fazer modificações que o formulário dinâmico não suporta, ou para inspecionar os dados.
+    - Requer conhecimento da estrutura JSON esperada pelo sistema.
 
-8. **Acesse sua aplicação**
-   - Após o deploy, o Render mostrará a URL pública do seu app.
+### Tecnologias da Interface Web
 
-Pronto! Seu gerador de currículos estará disponível na nuvem.
+#### Backend
+- **Flask**: Framework web leve e flexível para Python.
+- **Flask-CORS**: Extensão para lidar com Cross-Origin Resource Sharing.
+- **JSONSchema**: Para validação de estruturas JSON (usado pelos schemas em `web/static/schemas/`).
+
+#### Frontend
+- **HTML5/CSS3**: Para a estrutura e estilo da interface.
+- **JavaScript (ES6+)**: Para interatividade, manipulação do DOM, chamadas AJAX e gerenciamento do `localStorage`.
+    - `cadastro.js`: Lógica principal da página `/cadastrar` (geração de formulário, abas, salvamento no localStorage).
+    - `storage.js`: Funções utilitárias para interagir com o `localStorage`.
+    - `generate.js`: Lógica da página `/` (geração de currículos).
+    - `edit.js`: Lógica da página `/edit` (edição do JSON bruto do localStorage).
+- **CodeMirror**: Editor de código com syntax highlighting, usado na página `/edit` para visualização/edição do JSON bruto.
+- **Fetch API**: Para comunicação assíncrona com o backend (se necessário, ex: carregar schemas).
+
+### Estrutura de Dados no LocalStorage
+
+Os dados inseridos através da página `/cadastrar` são armazenados no `localStorage` do navegador. Cada idioma tem uma entrada separada, geralmente usando uma chave como `cvData_pt`, `cvData_en`, etc. O conteúdo é uma string JSON que espelha a estrutura esperada pelos scripts geradores de currículo.
 
 ---
 
@@ -67,8 +95,10 @@ Pronto! Seu gerador de currículos estará disponível na nuvem.
 - pip (gerenciador de pacotes do Python)
 
 ### Bibliotecas
-- **Para formato DOCX**: python-docx
-- **Para formato PDF**: ReportLab
+- **Para formato DOCX**: `python-docx`
+- **Para formato PDF**: `ReportLab`
+- **Para interface web**: `Flask`, `Flask-CORS`
+- **Utilitários**: `Pillow` (para imagens em PDF), `jsonschema` (para validação de schemas JSON)
 
 ## Instalação
 
@@ -83,11 +113,7 @@ cd cv-generator
 pip install -r requirements.txt
 ```
 
-Isso instalará todas as bibliotecas necessárias para o funcionamento do sistema, incluindo:
-- python-docx: Para geração de arquivos DOCX
-- reportlab: Para geração de arquivos PDF
-- flask: Para a interface web
-- Outras bibliotecas auxiliares
+Isso instalará todas as bibliotecas necessárias para o funcionamento do sistema, incluindo `python-docx`, `reportlab`, `flask`, `flask-cors`, `pillow`, `jsonschema`.
 
 ## Gerenciamento de Dependências
 
@@ -98,12 +124,12 @@ O projeto utiliza várias bibliotecas Python para funcionar corretamente. Todas 
 1. **Para geração de documentos**:
    - `python-docx`: Manipulação de arquivos DOCX
    - `reportlab`: Criação de PDFs
-   - `pillow`: Processamento de imagens para os PDFs
+   - `pillow`: Processamento de imagens para os PDFs (se houver imagens nos templates)
 
 2. **Para a interface web**:
    - `flask`: Framework web
    - `flask-cors`: Suporte a CORS para a API
-   - `jsonschema`: Validação de JSON
+   - `jsonschema`: Validação dos schemas JSON que definem a estrutura dos formulários dinâmicos
 
 ### Atualizando dependências
 
@@ -135,7 +161,13 @@ pip install -r requirements.txt
 
 ## Uso
 
-### Método Recomendado: Interface Interativa
+### Método Recomendado: Interface Web
+Acesse `http://127.0.0.1:5000/` após iniciar o servidor com `python ./web/app.py`.
+- Use a página `/cadastrar` para inserir e editar os dados do seu currículo.
+- Use a página `/` (Gerar Currículo) para selecionar o idioma, formato e gerar o documento.
+- Use a página `/edit` para edições avançadas do JSON armazenado no navegador.
+
+### Método Legado: Interface Interativa (CLI)
 
 A maneira mais simples de usar o sistema é através do menu interativo:
 
@@ -149,23 +181,23 @@ Este comando inicia um assistente que permite escolher:
 3. Para PDFs regulares, há uma opção adicional para otimização ATS
 4. O template de layout desejado (padrão ou personalizado)
 
-### Uso via Linha de Comando
+### Uso via Linha de Comando (Legado)
 
 Para usuários avançados, é possível executar os scripts diretamente com parâmetros:
 
 Para gerar o currículo em formato DOCX:
 ```bash
-python curriculo_docx.py [CÓDIGO_IDIOMA] [--template NOME_TEMPLATE]
+python ./curriculo_docx.py [CÓDIGO_IDIOMA] [--template NOME_TEMPLATE]
 ```
 
 Para gerar o currículo em formato PDF:
 ```bash
-python curriculo_pdf.py [CÓDIGO_IDIOMA] [--template NOME_TEMPLATE]
+python ./curriculo_pdf.py [CÓDIGO_IDIOMA] [--template NOME_TEMPLATE]
 ```
 
 Para gerar o currículo em formato PDF otimizado para ATS:
 ```bash
-python curriculo_pdf_ats.py [CÓDIGO_IDIOMA] [--template NOME_TEMPLATE]
+python ./curriculo_pdf_ats.py [CÓDIGO_IDIOMA] [--template NOME_TEMPLATE]
 ```
 
 #### Parâmetros:
@@ -174,13 +206,13 @@ python curriculo_pdf_ats.py [CÓDIGO_IDIOMA] [--template NOME_TEMPLATE]
 
 #### Exemplos:
 ```bash
-python curriculo_docx.py pt                     # Português com template padrão
-python curriculo_pdf.py en                      # Inglês com template padrão
-python curriculo_pdf.py pt --template pdf_moderno # Português com template moderno
-python curriculo_pdf_ats.py pt                  # Português com template ATS
+python ./curriculo_docx.py pt                     # Português com template padrão
+python ./curriculo_pdf.py en                      # Inglês com template padrão
+python ./curriculo_pdf.py pt --template pdf_moderno # Português com template moderno
+python ./curriculo_pdf_ats.py pt                  # Português com template ATS
 ```
 
-Se nenhum código de idioma for especificado, o sistema usará o português como padrão (se disponível).
+Se nenhum código de idioma for especificado, os scripts de linha de comando usarão o português como padrão (se o `curriculo_pt.json` existir na raiz).
 
 ### Interface Web
 
@@ -303,244 +335,77 @@ Para maximizar suas chances com sistemas ATS:
 
 O template ATS deste sistema implementa automaticamente muitas dessas práticas, mas lembre-se de adaptar o conteúdo do seu currículo para cada vaga.
 
-## Estrutura de Dados
+## Estrutura de Dados dos Arquivos JSON (Usados como fallback ou exemplos)
 
-Os dados do currículo são armazenados em arquivos JSON com a convenção `curriculo_XX.json`, onde `XX` é o código do idioma (pt, en, es, etc.).
+Os dados do currículo podem ser fornecidos por arquivos JSON com a convenção `curriculo_XX.json` na raiz do projeto, onde `XX` é o código do idioma (pt, en, es, etc.). Estes arquivos são usados como fallback pela interface web se não houver dados no `localStorage`, e são a fonte primária para os scripts de linha de comando.
 
-### Estrutura Básica
-
-Cada arquivo JSON deve incluir:
-
-```json
-{
-  "languageName": "Nome do idioma na própria língua",
-  
-  // Informações pessoais
-  "nome": "Nome Completo",  // ou "name", "nombre", etc.
-  "email": "email@exemplo.com",
-  "telefone": "+XX XX XXXXX-XXXX",  // ou "phone", "telefono", etc.
-  "linkedin": "https://linkedin.com/in/usuario",
-  
-  // Seções do currículo
-  "secoes": {  // ou "sections", "secciones", etc.
-    // Várias seções específicas para cada idioma
-  },
-  
-  // Nome do arquivo de saída
-  "nomeArquivoSaida": "Curriculo_Nome_Completo"  // ou "outputFileName", etc.
-}
-```
-
-### Exemplos por Idioma
-
-<details>
-<summary><b>🇧🇷 Português (curriculo_pt.json)</b></summary>
-
-```json
-{
-  "languageName": "Português",
-  "nome": "Nome Completo",
-  "email": "email@exemplo.com",
-  "telefone": "+55 11 98765-4321",
-  "linkedin": "https://linkedin.com/in/usuario",
-  "secoes": {
-    "resumoProfissional": { /* conteúdo */ },
-    "experienciaProfissional": { /* conteúdo */ },
-    "habilidadesTecnicas": { /* conteúdo */ },
-    "certificacoes": { /* conteúdo */ },
-    "educacao": { /* conteúdo */ },
-    "emAndamento": { /* conteúdo */ }
-  },
-  "nomeArquivoSaida": "Curriculo_Nome_Completo"
-}
-```
-</details>
-
-<details>
-<summary><b>🇺🇸 Inglês (curriculo_en.json)</b></summary>
-
-```json
-{
-  "languageName": "English",
-  "name": "Full Name",
-  "email": "email@example.com",
-  "phone": "+1 555-123-4567",
-  "linkedin": "https://linkedin.com/in/user",
-  "sections": {
-    "professionalSummary": { /* content */ },
-    "workExperience": { /* content */ },
-    "technicalSkills": { /* content */ },
-    "certifications": { /* content */ },
-    "education": { /* content */ },
-    "inProgress": { /* content */ }
-  },
-  "outputFileName": "Resume_Full_Name"
-}
-```
-</details>
-
-<details>
-<summary><b>🇪🇸 Espanhol (curriculo_es.json)</b></summary>
-
-```json
-{
-  "languageName": "Español",
-  "nombre": "Nombre Completo",
-  "email": "email@ejemplo.com",
-  "telefono": "+34 612 345 678",
-  "linkedin": "https://linkedin.com/in/usuario",
-  "secciones": {
-    "resumenProfesional": { /* contenido */ },
-    "experienciaLaboral": { /* contenido */ },
-    "habilidadesTecnicas": { /* contenido */ },
-    "certificaciones": { /* contenido */ },
-    "educacion": { /* contenido */ },
-    "enProgreso": { /* contenido */ }
-  },
-  "nombreArchivoSalida": "Curriculum_Nombre_Completo"
-}
-```
-</details>
+A interface web utiliza **schemas JSON** (localizados em `web/static/schemas/`) para definir a estrutura dos formulários dinâmicos na página `/cadastrar`. Estes schemas podem ser similares em estrutura aos arquivos `curriculo_XX.json`, mas servem a um propósito diferente (definição de formulário vs. dados concretos).
 
 ## Estrutura do Projeto
 
 ```
 cv-generator/
-├── curriculo_docx.py       # Gerador de formato DOCX
-├── curriculo_pdf.py        # Gerador de formato PDF
-├── curriculo_pdf_ats.py    # Gerador de PDF otimizado para ATS
-├── cv-generator.py         # Interface interativa de linha de comando
-├── requirements.txt        # Lista de dependências do projeto
-├── curriculo_pt.json       # Dados em português
-├── curriculo_en.json       # Dados em inglês
-├── curriculo_es.json       # Dados em espanhol
-├── templates/              # Diretório de templates para geração de documentos
-│   ├── __init__.py         # Gerenciador de templates
-│   ├── template_pdf.py     # Template padrão para PDF
-│   ├── template_docx.py    # Template padrão para DOCX
-│   ├── template_pdf_moderno.py  # Template moderno para PDF
-│   └── template_pdf_ats.py # Template otimizado para ATS
-└── web/                    # Interface web
+├── curriculo_docx.py       # Gerador DOCX (CLI)
+├── curriculo_pdf.py        # Gerador PDF Moderno (CLI)
+├── curriculo_pdf_ats.py    # Gerador PDF ATS (CLI)
+├── cv-generator.py         # Interface interativa (CLI)
+├── requirements.txt        # Lista de dependências Python
+├── curriculo_pt.json       # Dados de exemplo em Português
+├── curriculo_en.json       # Dados de exemplo em Inglês
+├── curriculo_es.json       # Dados de exemplo em Espanhol
+├── LICENSE
+├── README.md
+├── render.yaml
+├── wsgi.py                   # Para deploy com Gunicorn
+├── templates/              # Templates Python para geradores de documentos
+│   ├── __init__.py
+│   ├── template_docx.py
+│   ├── template_pdf.py
+│   ├── template_pdf_moderno.py
+│   └── template_pdf_ats.py
+└── web/                    # Interface web (Flask)
     ├── app.py              # Aplicação Flask principal
     ├── static/             # Arquivos estáticos
-    │   ├── css/            # Estilos CSS
-    │   │   └── styles.css  # Folha de estilos principal
-    │   ├── js/             # Scripts JavaScript
-    │   │   ├── edit_new.js # Funções para edição de JSON
-    │   │   └── generate.js # Funções para geração de currículos
-    │   └── schemas/        # Schemas JSON para validação
+    │   ├── css/
+    │   │   └── styles.css
+    │   ├── js/
+    │   │   ├── cadastro.js   # Lógica da página /cadastrar
+    │   │   ├── storage.js    # Utilitários para localStorage
+    │   │   ├── generate.js   # Lógica da página / (gerar)
+    │   │   └── edit.js       # Lógica da página /edit (JSON bruto)
+    │   └── schemas/        # Schemas JSON para formulários dinâmicos
     │       ├── schema_pt.json
     │       ├── schema_en.json
     │       └── schema_es.json
-    └── templates/          # Templates HTML
-        ├── base.html       # Template base com estrutura comum
-        ├── edit.html       # Página de edição de JSON
-        └── generate.html   # Página de geração de currículos
+    └── templates/          # Templates HTML (Jinja2)
+        ├── base.html
+        ├── cadastrar.html  # cadastro/edição via formulário
+        ├── edit.html       # Para edição do JSON bruto
+        └── generate.html   # Página principal para seleção e geração
 ```
 
 ## Adicionando Novos Idiomas
 
-Para adicionar suporte a um novo idioma:
+1.  **Para a Interface Web (`/cadastrar` e `/`):**
+    *   Crie um novo arquivo de schema JSON em `web/static/schemas/`, por exemplo, `schema_fr.json` para Francês. Este arquivo define os campos e seções para o formulário dinâmico.
+    *   Atualize a lógica em `web/app.py` e nos JavaScripts (`cadastro.js`, `generate.js`) para reconhecer o novo idioma e carregar o schema correspondente.
+    *   Forneça traduções para os rótulos da interface, se necessário.
 
-1. Crie um arquivo JSON seguindo o padrão `curriculo_XX.json` (onde XX é o código do idioma)
-2. Inclua o campo `languageName` com o nome do idioma na própria língua
-3. Estruture as seções do currículo conforme as convenções desse idioma
-4. O sistema detectará automaticamente o novo idioma na próxima execução
-
-## Notas Técnicas
-
-- O sistema implementa um mecanismo de "fallback" para campos, permitindo diferentes estruturas JSON entre idiomas
-- A seção "Habilidades Técnicas" é automaticamente iniciada em uma nova página
-- O template moderno utiliza quadradinhos para representar os níveis de habilidade técnica
-- Todas as quebras de página são gerenciadas automaticamente para garantir um layout profissional
+2.  **Para os Scripts de Linha de Comando (Legado) e Fallback da Web:**
+    *   Crie um arquivo de dados JSON na raiz do projeto, seguindo o padrão `curriculo_XX.json` (e.g., `curriculo_fr.json`).
+    *   Inclua o campo `languageName` com o nome do idioma na própria língua.
+    *   Estruture as seções do currículo conforme as convenções desse idioma e os campos esperados pelos scripts `curriculo_*.py`.
 
 ## Contribuições
 
 Contribuições são bem-vindas! Sinta-se à vontade para:
-- Adicionar novos templates
-- Implementar suporte a novos idiomas
+- Adicionar novos templates de documentos (`templates/`)
+- Melhorar os schemas de formulário (`web/static/schemas/`)
+- Implementar suporte a novos idiomas (schemas, arquivos JSON de exemplo, e atualizações nos scripts)
 - Melhorar a formatação dos documentos gerados
-- Estender a funcionalidade do sistema
+- Estender a funcionalidade do sistema (CLI ou Web)
 
 ![Screenshot_22](https://github.com/user-attachments/assets/50d8d192-a68d-46ee-a5ba-79cf012e1616)
-
-# Interface Web - CV Generator
-
-Esta interface web fornece uma maneira fácil e intuitiva de editar arquivos JSON de currículo e gerar PDFs/DOCXs a partir deles.
-
-## Iniciando a Interface Web
-
-Para iniciar a interface web, execute o seguinte comando no terminal:
-
-```bash
-# Certifique-se de que todas as dependências estão instaladas
-pip install -r requirements.txt
-
-# Navegue até a pasta web e execute:
-cd web
-python app.py
-```
-
-Após executar este comando, abra seu navegador e acesse:
-http://localhost:5000 ou http://127.0.0.1:5000
-
-## Funcionalidades
-
-A interface web possui duas funcionalidades principais:
-
-### 1. Edição de Arquivos JSON
-
-Na página de edição, você pode:
-
-- Selecionar um arquivo JSON de currículo para editar através do menu dropdown
-- Visualizar e editar o conteúdo completo do JSON em um editor de texto
-- Salvar as alterações feitas no arquivo
-
-Dicas para edição:
-- Mantenha a estrutura JSON intacta para evitar erros de formatação
-- Não remova campos-chave como "languageName", "nome", etc.
-- Você pode adicionar novos campos conforme necessário, seguindo a estrutura existente
-
-### 2. Geração de Currículos
-
-Na página de geração, você pode:
-
-- Selecionar o idioma do currículo (baseado nos arquivos JSON disponíveis)
-- Escolher o formato desejado:
-  - PDF (diferentes estilos disponíveis)
-  - PDF otimizado para ATS (Applicant Tracking Systems)
-  - DOCX (documento Word)
-- Gerar o currículo com um clique
-- O arquivo será gerado e baixado automaticamente
-
-## Tecnologias da Interface Web
-
-A interface web utiliza as seguintes tecnologias:
-
-### Backend
-- **Flask**: Framework web leve e flexível para Python
-- **Flask-CORS**: Extensão para lidar com Cross-Origin Resource Sharing
-- **JSONSchema**: Para validação de estruturas JSON
-
-### Frontend
-- **HTML5/CSS3**: Para a estrutura e estilo da interface
-- **JavaScript (ES6+)**: Para interatividade
-- **CodeMirror**: Editor de código usado para editar os arquivos JSON
-- **Fetch API**: Para comunicação com o backend
-
-### Recursos
-- **Edição de JSON com syntax highlighting**: Facilita a visualização e edição do conteúdo
-- **Validação em tempo real**: Verifica erros de sintaxe JSON
-- **Visualização instantânea**: Prévia do documento gerado
-- **Interface responsiva**: Adaptável a diferentes tamanhos de tela
-
-## Personalização da Interface Web
-
-Você pode personalizar a interface web editando os seguintes arquivos:
-
-- **`web/static/css/styles.css`**: Para mudar o visual da interface
-- **`web/templates/*.html`**: Para modificar a estrutura HTML
-- **`web/static/js/*.js`**: Para alterar o comportamento JavaScript
 
 ## Licença
 

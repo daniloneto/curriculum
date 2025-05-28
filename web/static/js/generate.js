@@ -53,8 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Atualizar o botão quando o idioma mudar
-    languageSelect.addEventListener('change', updateGenerateButton);
-      // Gerar o PDF quando o botão for clicado
+    languageSelect.addEventListener('change', updateGenerateButton);    // Gerar o PDF quando o botão for clicado
     generateButton.addEventListener('click', function() {
         const selectedLanguage = languageSelect.value;
         
@@ -77,18 +76,29 @@ document.addEventListener('DOMContentLoaded', function() {
         // Esconder o link de download existente
         downloadLinkContainer.style.display = 'none';
         
+        // Verificar se existe uma versão armazenada no localStorage
+        const storedResume = getStoredResume(selectedLanguage);
+        const requestData = {
+            language: selectedLanguage,
+            format: selectedFormat,
+            template: selectedTemplate
+        };
+        
+        // Se temos uma versão armazenada, enviar o conteúdo do currículo diretamente
+        if (storedResume) {
+            console.log('Usando currículo do localStorage para o idioma:', selectedLanguage);
+            addDebugInfo('Usando currículo do localStorage', { language: selectedLanguage });
+            requestData.content = storedResume;
+        }
+        
         // Enviar a solicitação para gerar o PDF
         fetch('/generate_pdf', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                language: selectedLanguage,
-                format: selectedFormat,
-                template: selectedTemplate
-            })
-        })        .then(response => {
+            body: JSON.stringify(requestData)
+        }).then(response => {
             // Registrar informações sobre a resposta para depuração
             if (debugOutput) {
                 addDebugInfo('Resposta do servidor:', {
