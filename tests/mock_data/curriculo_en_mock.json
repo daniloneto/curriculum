@@ -1,0 +1,36 @@
+{
+  "languageName": "English (Mock)",
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "123-456-7890",
+  "linkedin": "linkedin.com/in/johndoe",
+  "outputFileName": "CV_JohnDoe_EN_mock",
+  "secoes": {
+    "professionalSummary": {
+      "title": "Professional Summary",
+      "content": "A brief summary."
+    },
+    "workExperience": {
+      "title": "Work Experience",
+      "jobs": [
+        {
+          "position": "Software Engineer",
+          "empresa": "Tech Solutions Inc.",
+          "periodo": "2020-Present",
+          "descricao": ["Developed cool stuff.", "Led a small team."]
+        }
+      ]
+    },
+    "technicalSkills": {
+      "title": "Technical Skills",
+      "habilidades": [
+        {"nome": "Python", "nivel": "5"},
+        {"nome": "Java", "nivel": "4"}
+      ]
+    },
+    "education": {
+        "title": "Education",
+        "degrees": ["BSc Computer Science"]
+    }
+  }
+}

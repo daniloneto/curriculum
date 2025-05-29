@@ -1,656 +1,622 @@
+"""
+Flask Web Application for the CV Generator.
+
+This module implements a Flask web application that provides a user interface
+for creating, editing, and generating CVs in various formats (DOCX, PDF, ATS-PDF).
+It handles routing, request processing, interaction with the CV generation logic
+(DataLoader, TemplateManager, and specific CV generators), and file downloads.
+
+Endpoints:
+    /: Redirects to the CV creation page.
+    /schemas/<language>: Serves JSON schema for CV data validation.
+    /edit: Page for editing existing CV data (loads data into form).
+    /cadastrar: Page for creating new CV data using a dynamic form.
+    /generate: Page for selecting options to generate a CV.
+    /create_json: API endpoint to create a new language JSON file.
+    /get_json_content: API endpoint to fetch content of a language JSON file.
+    /save_json: API endpoint to save CV data to a language JSON file.
+    /generate_cv: API endpoint to trigger CV generation.
+    /download_cached/<file_id>: Serves a generated file from cache (production).
+    /download_dev/<filename>: Serves a generated file directly (development).
+    /debug/file_exists/<filename>: Debug endpoint to check file existence.
+"""
 import os
 import sys
-import glob
 import json
-import subprocess
-from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from templates import TemplateManager
+import tempfile
+import uuid
+import logging
+from logging import FileHandler
+from flask import (
+    Flask, render_template, request, jsonify,
+    send_file, redirect, url_for
+)
+from typing import Dict, Any, Optional, List, Tuple # For type hinting
 
-# Detectar se está em ambiente de produção (Render) ou local
-def is_production():
-    """Detecta se o aplicativo está rodando em ambiente de produção (Render)."""
-    return os.environ.get('RENDER') == 'true' or os.environ.get('FLASK_ENV') == 'production'
+# Ensure project root is in path to allow imports of other modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from templates import TemplateManager
+from utils import get_available_languages
+from data_loader import DataLoader
+from cv_generators.docx_generator import DocxGenerator
+from cv_generators.pdf_generator import PdfGenerator
+from cv_generators.pdf_ats_generator import PdfAtsGenerator
+
+# --- Application Setup & Configuration ---
 
 app = Flask(__name__)
+app.config['PROJECT_ROOT'] = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..')
+)
 
-# Cache de arquivos temporários
-file_cache = {}
 
-# Função para listar idiomas disponíveis (adaptado do cv-generator.py)
-def get_available_languages():
-    # Procurar todos os arquivos JSON que seguem o padrão curriculo_XX.json na pasta raiz
-    root_dir = os.path.dirname(os.path.dirname(__file__))
-    json_files = glob.glob(os.path.join(root_dir, 'curriculo_*.json'))
-    languages = {}
-    
-    print(f"Diretório raiz: {root_dir}")
-    print(f"Arquivos JSON encontrados: {json_files}")
-    
-    for file in json_files:
-        # Extrair o código do idioma do nome do arquivo (curriculo_XX.json -> XX)
-        base_name = os.path.basename(file)
-        lang_code = base_name.replace('curriculo_', '').replace('.json', '')
-        
-        print(f"Processando arquivo: {file}, código de idioma: {lang_code}")
-        
-        # Carregar o arquivo para obter o nome do idioma na própria língua
-        try:
-            with open(file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
-                # Verificar se o arquivo tem a estrutura esperada
-                if 'languageName' in data:
-                    lang_name = data['languageName']
-                else:
-                    # Fallback para casos onde o nome do idioma não está definido
-                    lang_name = lang_code.upper()
-                
-                languages[lang_code] = {
-                    'name': lang_name,
-                    'file': file
-                }
-                print(f"Idioma adicionado: {lang_code} -> {lang_name}")
-        except Exception as e:
-            # Se houver erro ao carregar ou analisar, pular este arquivo
-            print(f"Erro ao carregar {file}: {str(e)}")
-            pass
-    
-    # Se nenhum idioma foi encontrado, adicionar pelo menos o português como fallback
-    if not languages:
-        print("Nenhum idioma encontrado, adicionando fallbacks manuais...")
-        languages = {
-            'pt': {'name': 'Português', 'file': os.path.join(root_dir, 'curriculo_pt.json')},
-            'en': {'name': 'English', 'file': os.path.join(root_dir, 'curriculo_en.json')},
-            'es': {'name': 'Español', 'file': os.path.join(root_dir, 'curriculo_es.json')}
-        }
-    
-    print(f"Lista final de idiomas: {languages}")
-    return languages
+def is_production() -> bool:
+    """
+    Detects if the application is running in a production-like environment.
+    Checks common environment variables used by hosting platforms like Render.
 
-# Obter templates disponíveis
-def get_available_templates():
-    # Lista fixa de templates disponíveis
-    # Isso garante que os templates serão exibidos mesmo que a descoberta automática falhe
-    default_templates = [
-        'pdf',
-        'docx',
-        'pdf_moderno',
-        'pdf_ats'
-    ]
-    
-    # Tentar obter os templates usando o TemplateManager
-    try:
-        template_manager = TemplateManager()
-        discovered_templates = template_manager.list_templates()
-        
-        # Se encontrou templates, usar eles
-        if discovered_templates:
-            print("Templates descobertos:", discovered_templates)
-            return discovered_templates
-    except Exception as e:
-        print(f"Erro ao descobrir templates: {str(e)}")
-    
-    # Fallback para a lista fixa de templates
-    print("Usando lista de templates padrão:", default_templates)
-    return default_templates
+    Returns:
+        bool: True if in a production environment, False otherwise.
+    """
+    return (os.environ.get('RENDER') == 'true' or
+            os.environ.get('FLASK_ENV') == 'production')
 
+
+# --- File Cache Manager ---
+class FileCacheManager:
+    """
+    Manages temporary storage of generated file paths for download.
+
+    This simple cache uses a dictionary to map unique IDs to file paths,
+    facilitating file downloads, especially in serverless or ephemeral
+    filesystem environments where direct path access might be complex.
+
+    Attributes:
+        cache (Dict[str, str]): A dictionary storing file_id: file_path pairs.
+    """
+    def __init__(self):
+        """Initializes the FileCacheManager with an empty cache."""
+        self.cache: Dict[str, str] = {}
+
+    def add_file(self, file_path: str) -> str:
+        """
+        Adds a file path to the cache and returns a unique ID for retrieval.
+
+        Args:
+            file_path (str): The absolute path to the file to be cached.
+
+        Returns:
+            str: A unique string ID that can be used to retrieve the file path.
+        """
+        file_id = str(uuid.uuid4())
+        self.cache[file_id] = file_path
+        app.logger.info(f"File added to cache: ID {file_id} -> Path {file_path}")
+        return file_id
+
+    def get_file_path(self, file_id: str) -> Optional[str]:
+        """
+        Retrieves a file path from the cache using its unique ID.
+
+        Args:
+            file_id (str): The unique ID of the file.
+
+        Returns:
+            Optional[str]: The file path if found, otherwise None.
+        """
+        path = self.cache.get(file_id)
+        if path:
+            app.logger.info(f"File path retrieved from cache: ID {file_id} -> Path {path}")
+        else:
+            app.logger.warning(f"File ID not found in cache: {file_id}")
+        return path
+
+    def remove_file(self, file_id: str) -> Optional[str]:
+        """
+        Removes a file path from the cache using its ID (e.g., after download).
+
+        Args:
+            file_id (str): The unique ID of the file to remove.
+
+        Returns:
+            Optional[str]: The file path that was removed, or None if ID not found.
+        """
+        path = self.cache.pop(file_id, None)
+        if path:
+            app.logger.info(f"File removed from cache: ID {file_id}, Path {path}")
+        return path
+
+file_cache_manager = FileCacheManager()
+
+
+# --- Helper Functions ---
+def get_project_root() -> str:
+    """
+    Returns the absolute path to the project root directory.
+    Relies on `app.config['PROJECT_ROOT']`.
+
+    Returns:
+        str: Absolute path to the project root.
+    """
+    return app.config['PROJECT_ROOT']
+
+
+# --- Routes ---
 @app.route('/')
-def index():
-    # Redirecionar para a página de cadastro
-    return redirect(url_for('cadastrar'))
+def index() -> Any:
+    """Redirects the root URL to the CV creation page."""
+    return redirect(url_for('cadastrar_cv_page'))
+
 
 @app.route('/schemas/<language>')
-def get_schema(language):
-    """Rota para servir os schemas JSON de validação."""
-    # Caminho absoluto para o diretório de schemas
-    schema_path = os.path.join(os.path.dirname(__file__), 'static', 'schemas', f'schema_{language}.json')
-    
-    print(f"Procurando schema em: {schema_path}")
-    
-    # Verificar se o diretório existe e criar se não existir
-    schemas_dir = os.path.join(os.path.dirname(__file__), 'static', 'schemas')
-    if not os.path.exists(schemas_dir):
+def get_schema(language: str) -> Any:
+    """
+    Serves JSON schema files for CV data validation for a given language.
+    If a schema file doesn't exist, a basic one is created.
+
+    Args:
+        language (str): The language code for which to retrieve the schema.
+
+    Returns:
+        Response: A Flask JSON response containing the schema or an error message.
+    """
+    schema_dir = os.path.join(get_project_root(), 'web', 'static', 'schemas')
+    schema_path = os.path.join(schema_dir, f'schema_{language}.json')
+
+    if not os.path.isdir(schema_dir):
         try:
-            os.makedirs(schemas_dir)
-            print(f"Criado diretório de schemas: {schemas_dir}")
-        except Exception as e:
-            print(f"Erro ao criar diretório de schemas: {str(e)}")
+            os.makedirs(schema_dir)
+            app.logger.info(f"Created schema directory: {schema_dir}")
+        except OSError as e:
+            app.logger.error(f"Error creating schema directory {schema_dir}: {e}")
             return jsonify({'error': f'Erro ao criar diretório de schemas: {str(e)}'}), 500
-    
-    # Se o schema não existir, criar um básico
+
     if not os.path.exists(schema_path):
-        print(f"Schema não encontrado, criando novo schema para {language}")
-        
-        # Criar um schema básico para o idioma
-        basic_schema = create_basic_schema(language)
-        
-        # Salvar o schema básico
+        app.logger.info(f"Schema not found for language '{language}', creating basic schema at {schema_path}.")
+        # Simplified basic schema for brevity in this example
+        basic_schema: Dict[str, Any] = {
+            "type": "object",
+            "properties": {
+                "languageName": {"type": "string", "description": f"Name of the language ({language})"},
+                "nome": {"type": "string", "description": "Full name"}
+            },
+            "required": ["languageName", "nome"]
+        }
         try:
             with open(schema_path, 'w', encoding='utf-8') as f:
                 json.dump(basic_schema, f, indent=2, ensure_ascii=False)
-            print(f"Schema básico criado em: {schema_path}")
-        except Exception as e:
-            print(f"Erro ao criar schema básico: {str(e)}")
-            return jsonify({'error': f'Erro ao criar schema para o idioma {language}: {str(e)}'}), 500
-    else:
-        print(f"Schema encontrado em: {schema_path}")
-    
-    # Ler o schema existente
+        except IOError as e:
+            app.logger.error(f"Error creating basic schema file {schema_path}: {e}")
+            return jsonify({'error': f'Erro ao criar schema básico para {language}: {str(e)}'}), 500
+
     try:
         with open(schema_path, 'r', encoding='utf-8') as f:
-            schema = json.load(f)
-        print(f"Schema carregado com sucesso")
-        return jsonify(schema)
+            schema_content = json.load(f)
+        return jsonify(schema_content)
+    except FileNotFoundError: # Should be caught by creation logic, but as safeguard
+        app.logger.error(f"Schema file not found after attempting creation: {schema_path}")
+        return jsonify({'error': f'Schema para o idioma {language} não encontrado.'}), 404
     except Exception as e:
-        print(f"Erro ao ler schema: {str(e)}")
+        app.logger.error(f"Error reading schema file {schema_path}: {e}")
         return jsonify({'error': f'Erro ao ler schema para o idioma {language}: {str(e)}'}), 500
 
-def create_basic_schema(language):
-    """Cria um schema básico de validação para um idioma."""
-    # Estrutura básica do schema JSON para validação
-    schema = {
-        "type": "object",
-        "required": ["languageName"],
-        "properties": {
-            "languageName": {"type": "string"},
-            "name": {"type": "string"},
-            "nome": {"type": "string"},
-            "nombre": {"type": "string"},
-            "email": {"type": "string", "format": "email"},
-            "phone": {"type": "string"},
-            "telefone": {"type": "string"},
-            "teléfono": {"type": "string"},
-            "linkedin": {"type": "string"},
-            "outputFileName": {"type": "string"},
-            "secoes": {
-                "type": "object",
-                "properties": {
-                    "resumo": {
-                        "type": "object",
-                        "properties": {
-                            "titulo": {"type": "string"},
-                            "texto": {"type": "string"}
-                        }
-                    },
-                    "experienciaProfissional": {
-                        "type": "object",
-                        "properties": {
-                            "titulo": {"type": "string"},
-                            "empregos": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "educacao": {
-                        "type": "object",
-                        "properties": {
-                            "titulo": {"type": "string"},
-                            "formacao": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "sections": {
-                "type": "object"
-            }
-        }
-    }
-    
-    return schema
 
 @app.route('/edit')
-def edit():
-    languages = get_available_languages()
+def edit_cv_page() -> str: # Renamed for clarity
+    """Renders the CV editing page."""
+    languages = get_available_languages(root_dir=get_project_root())
     return render_template('edit.html', languages=languages)
 
+
 @app.route('/cadastrar')
-def cadastrar():
-    """Rota para a página de cadastro de currículo."""
-    languages = get_available_languages()
+def cadastrar_cv_page() -> str: # Renamed for clarity
+    """Renders the CV creation/registration page."""
+    languages = get_available_languages(root_dir=get_project_root())
     return render_template('cadastrar.html', languages=languages)
 
-@app.route('/generate')
-def generate():
-    languages = get_available_languages()
-    templates = get_available_templates()
+
+def get_available_templates_grouped() -> Dict[str, List[str]]:
+    """
+    Retrieves and groups available template names for the UI.
+
+    Templates are grouped by their base format type (e.g., 'pdf', 'docx').
+    Special templates like 'pdf_ats' are handled as a distinct group.
+
+    Returns:
+        Dict[str, List[str]]: A dictionary where keys are format types/groups
+                              and values are lists of template modifier names.
+    """
+    template_manager = TemplateManager(root_dir=get_project_root())
+    templates_list = template_manager.list_templates()
     
-    # Organizar templates por tipo
-    template_groups = {}
-    for template_name in templates:
+    template_groups: Dict[str, List[str]] = {}
+    for template_name in templates_list:
         parts = template_name.split('_', 1)
-        format_type = parts[0]  # pdf, docx, etc
+        format_type = parts[0]
+        modifier = parts[1] if len(parts) > 1 else ""
+
+        if format_type == 'pdf' and modifier == 'ats':
+            # Treat 'pdf_ats' as its own top-level group for clarity in UI
+            group_key = 'pdf_ats'
+            # Store 'ats' as a "modifier" or an empty string if no further variants
+            actual_modifier_for_ats = "" # Or 'ats' itself if it makes sense for UI
+        else:
+            group_key = format_type
         
-        if format_type not in template_groups:
-            template_groups[format_type] = []
+        if group_key not in template_groups:
+            template_groups[group_key] = []
         
-        # Somente adicionar o modificador ao grupo, não o formato completo
-        if len(parts) > 1:
-            modifier = parts[1]
-            # Se for um formato especial como pdf_ats, tratá-lo como um grupo separado
-            if format_type == 'pdf' and modifier == 'ats':
-                if 'pdf_ats' not in template_groups:
-                    template_groups['pdf_ats'] = []
-                template_groups['pdf_ats'].append(modifier)
-            else:
-                template_groups[format_type].append(modifier)
+        # For base templates (e.g. 'pdf' or 'docx' themselves), modifier is empty string
+        # For variants (e.g. 'pdf_moderno'), modifier is 'moderno'
+        if modifier and group_key != 'pdf_ats': # Don't add 'ats' as modifier to 'pdf_ats' group
+            template_groups[group_key].append(modifier)
+        elif not modifier and group_key != 'pdf_ats': # Base template, no modifier to add to list
+            pass # Base template is implied by the group key
+            
+    # Ensure base format keys exist even if only variants were found (e.g. only 'pdf_moderno')
+    for fmt in ['pdf', 'docx']:
+        if fmt not in template_groups:
+            template_groups[fmt] = []
+            
+    return template_groups
+
+
+@app.route('/generate')
+def select_generation_options_page() -> str: # Renamed for clarity
+    """Renders the page for selecting CV generation options."""
+    languages = get_available_languages(root_dir=get_project_root())
+    template_groups = get_available_templates_grouped()
     
-    # Preparar nomes de exibição para os formatos
     format_display_names = {
         'pdf': 'PDF',
         'docx': 'Word (DOCX)',
         'pdf_ats': 'PDF otimizado para ATS'
     }
     
-    return render_template('generate.html', 
-                           languages=languages, 
-                           template_groups=template_groups,
-                           format_display_names=format_display_names)
+    return render_template(
+        'generate.html',
+        languages=languages,
+        template_groups=template_groups,
+        format_display_names=format_display_names
+    )
+
 
 @app.route('/create_json', methods=['POST'])
-def create_json():
+def create_language_json_file() -> Any: # Renamed for clarity
+    """
+    API endpoint to create a new language JSON file with a basic template.
+    Expects a JSON payload with a 'language' field (e.g., 'fr').
+    """
     try:
         data = request.json
-        if data is None:
-            return jsonify({'error': 'Dados JSON não recebidos'}), 400
-            
+        if not data:
+            return jsonify({'error': 'Dados JSON não recebidos (payload vazio)'}), 400
         language = data.get('language')
-        
-        if not language:
-            return jsonify({'error': 'Idioma não especificado'}), 400
+        if not language or not isinstance(language, str) or len(language) > 10: # Basic validation
+            return jsonify({'error': 'Parâmetro "language" ausente ou inválido'}), 400
     except Exception as e:
-        return jsonify({'error': f'Erro ao processar requisição: {str(e)}'}), 500
-        
-    # Verificar se o arquivo já existe
-    root_dir = os.path.dirname(os.path.dirname(__file__))
-    file_path = os.path.join(root_dir, f'curriculo_{language}.json')
-    
+        app.logger.warning(f"Invalid request to /create_json: {e}")
+        return jsonify({'error': f'Requisição JSON inválida: {str(e)}'}), 400
+
+    file_path = os.path.join(get_project_root(), f'curriculo_{language}.json')
     if os.path.exists(file_path):
-        return jsonify({'error': f'Arquivo para o idioma {language} já existe'}), 400
-    
-    # Criar um template básico para o novo arquivo
-    template = {
-        "languageName": "",
-        "nome": "",
-        "email": "",
-        "telefone": "",
-        "linkedin": "",
+        return jsonify({'error': f'Arquivo para o idioma "{language}" já existe em {file_path}'}), 400
+
+    # Basic CV template structure
+    cv_template: Dict[str, Any] = {
+        "languageName": language.capitalize(),
+        "nome": "", "email": "", "telefone": "", "linkedin": "",
         "secoes": {
-            "resumo": {
-                "titulo": "",
-                "texto": ""
-            },
-            "experienciaProfissional": {
-                "titulo": "",
-                "empregos": []
-            },
-            "educacao": {
-                "titulo": "",
-                "formacao": []
-            },
-            "habilidades": {
-                "titulo": "",
-                "categorias": []
-            },
-            "idiomas": {
-                "titulo": "",
-                "lista": []
-            },
-            "certificacoes": {
-                "titulo": "",
-                "lista": []
-            }
-        }
+            "resumo": {"titulo": "Resumo"},
+            "experienciaProfissional": {"titulo": "Experiência Profissional", "empregos": []},
+            "educacao": {"titulo": "Educação", "formacao": []},
+            "habilidades": {"titulo": "Habilidades", "items": []} # Using 'items' for generic list
+        },
+        "outputFileName": f"Curriculo_{language.capitalize()}" # Default output name suggestion
     }
+    # Language-specific titles (can be expanded)
+    if language == "pt": cv_template["secoes"]["resumo"]["titulo"] = "Resumo Profissional"
+    elif language == "en": cv_template["secoes"]["resumo"]["titulo"] = "Professional Summary"
+    elif language == "es": cv_template["secoes"]["resumo"]["titulo"] = "Resumen Profesional"
     
-    # Definir nomes específicos do idioma
-    if language == "pt":
-        template["languageName"] = "Português"
-        template["secoes"]["resumo"]["titulo"] = "Resumo Profissional"
-        template["secoes"]["experienciaProfissional"]["titulo"] = "Experiência Profissional"
-        template["secoes"]["educacao"]["titulo"] = "Educação"
-        template["secoes"]["habilidades"]["titulo"] = "Habilidades"
-        template["secoes"]["idiomas"]["titulo"] = "Idiomas"
-        template["secoes"]["certificacoes"]["titulo"] = "Certificações"
-    elif language == "en":
-        template["languageName"] = "English"
-        template["secoes"]["resumo"]["titulo"] = "Professional Summary"
-        template["secoes"]["experienciaProfissional"]["titulo"] = "Work Experience"
-        template["secoes"]["educacao"]["titulo"] = "Education"
-        template["secoes"]["habilidades"]["titulo"] = "Skills"
-        template["secoes"]["idiomas"]["titulo"] = "Languages"
-        template["secoes"]["certificacoes"]["titulo"] = "Certifications"
-    elif language == "es":
-        template["languageName"] = "Español"
-        template["secoes"]["resumo"]["titulo"] = "Resumen Profesional"
-        template["secoes"]["experienciaProfissional"]["titulo"] = "Experiencia Profesional"
-        template["secoes"]["educacao"]["titulo"] = "Educación"
-        template["secoes"]["habilidades"]["titulo"] = "Habilidades"
-        template["secoes"]["idiomas"]["titulo"] = "Idiomas"
-        template["secoes"]["certificacoes"]["titulo"] = "Certificaciones"
-    
-    # Salvar o template no arquivo
     try:
         with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(template, f, indent=2, ensure_ascii=False)
-        
-        return jsonify({'success': True, 'message': f'Arquivo JSON para {template["languageName"]} criado com sucesso'})
-    except Exception as e:
-        return jsonify({'error': f'Erro ao criar arquivo: {str(e)}'}), 500
+            json.dump(cv_template, f, indent=2, ensure_ascii=False)
+        app.logger.info(f"Created new language file: {file_path}")
+        return jsonify({'success': True, 'message': f'Arquivo JSON para "{language}" criado com sucesso.'})
+    except IOError as e:
+        app.logger.error(f"IOError creating language file {file_path}: {e}")
+        return jsonify({'error': f'Erro de I/O ao criar arquivo: {str(e)}'}), 500
+
 
 @app.route('/get_json_content', methods=['POST'])
-def get_json_content():
+def get_language_json_content() -> Any: # Renamed for clarity
+    """
+    API endpoint to fetch the content of a specific language JSON file.
+    Expects a JSON payload with a 'language' field.
+    """
     try:
         data = request.json
-        if data is None:
-            return jsonify({'error': 'Dados JSON não recebidos'}), 400
-            
+        if not data: return jsonify({'error': 'Dados JSON não recebidos'}), 400
         language = data.get('language')
-        
-        if not language:
-            return jsonify({'error': 'Idioma não especificado'}), 400
-        
-        file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), f'curriculo_{language}.json')
-        
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = json.load(f)
-            return jsonify({'content': content})
-        except FileNotFoundError:
-            return jsonify({'error': f'Arquivo para o idioma {language} não encontrado'}), 404
-        except Exception as e:
-            return jsonify({'error': f'Erro ao ler arquivo: {str(e)}'}), 500
-            
+        if not language: return jsonify({'error': 'Idioma não especificado'}), 400
     except Exception as e:
-        return jsonify({'error': f'Erro ao processar requisição: {str(e)}'}), 500
+        return jsonify({'error': f'Requisição JSON inválida: {str(e)}'}), 400
+
+    file_path = os.path.join(get_project_root(), f'curriculo_{language}.json')
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = json.load(f)
+        return jsonify({'content': content})
+    except FileNotFoundError:
+        return jsonify({'error': f'Arquivo para o idioma "{language}" não encontrado.'}), 404
+    except Exception as e:
+        app.logger.error(f"Error reading JSON file {file_path}: {e}")
+        return jsonify({'error': f'Erro ao ler arquivo JSON: {str(e)}'}), 500
+
 
 @app.route('/save_json', methods=['POST'])
-def save_json():
+def save_language_json_content() -> Any: # Renamed for clarity
+    """
+    API endpoint to save CV data to a specific language JSON file.
+    Expects a JSON payload with 'language' and 'content' (the CV data object).
+    """
     try:
         data = request.json
-        if data is None:
-            return jsonify({'error': 'Dados JSON não recebidos'}), 400
-            
+        if not data: return jsonify({'error': 'Dados JSON não recebidos'}), 400
         language = data.get('language')
-        content = data.get('content')
-        
-        if not language or not content:
-            return jsonify({'error': 'Dados incompletos'}), 400
-        
-        file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), f'curriculo_{language}.json')
-        
-        try:
-            # Verificar se o conteúdo é JSON válido
-            parsed_content = json.loads(content) if isinstance(content, str) else content
-            
-            # Salvar o arquivo
-            with open(file_path, 'w', encoding='utf-8') as f:
-                if isinstance(content, str):
-                    f.write(content)
-                else:
-                    json.dump(content, f, indent=2, ensure_ascii=False)
-                    
-            return jsonify({'success': True, 'message': 'Arquivo salvo com sucesso!'})
-        except json.JSONDecodeError:
-            return jsonify({'error': 'JSON inválido'}), 400
-        except Exception as e:
-            return jsonify({'error': f'Erro ao salvar arquivo: {str(e)}'}), 500
-            
+        content_data = data.get('content')
+        if not language or not isinstance(content_data, dict): # Basic validation for content
+            return jsonify({'error': 'Dados incompletos (idioma ou conteúdo ausente/inválido)'}), 400
     except Exception as e:
-        return jsonify({'error': f'Erro ao processar requisição: {str(e)}'}), 500
+        return jsonify({'error': f'Requisição JSON inválida: {str(e)}'}), 400
 
-@app.route('/generate_pdf', methods=['POST'])
-def generate_pdf():
+    file_path = os.path.join(get_project_root(), f'curriculo_{language}.json')
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(content_data, f, indent=2, ensure_ascii=False)
+        app.logger.info(f"Saved content to language file: {file_path}")
+        return jsonify({'success': True, 'message': 'Arquivo salvo com sucesso!'})
+    except Exception as e:
+        app.logger.error(f"Error saving JSON file {file_path}: {e}")
+        return jsonify({'error': f'Erro ao salvar arquivo JSON: {str(e)}'}), 500
+
+
+@app.route('/generate_cv', methods=['POST'])
+def generate_cv_endpoint() -> Any:
+    """
+    API endpoint to generate a CV.
+    Expects JSON payload with 'language', 'format_type' (e.g., 'pdf', 'docx'),
+    'template' (modifier, e.g., 'moderno'), and optional 'content' (direct CV data).
+    Uses the appropriate generator class directly.
+    """
     try:
         data = request.json
-        if data is None:
-            return jsonify({'error': 'Dados JSON não recebidos'}), 400
-            
-        language = data.get('language')
-        format_type = data.get('format')
-        template = data.get('template', None)
-        content = data.get('content', None)  # Novo: conteúdo JSON do currículo
+        if not data: return jsonify({'error': 'Dados JSON não recebidos'}), 400
         
+        language: Optional[str] = data.get('language')
+        format_type: Optional[str] = data.get('format') # Base format: 'pdf', 'docx'
+        # Template modifier from UI, e.g., 'moderno' for 'pdf_moderno', or 'ats' for 'pdf_ats'
+        template_selection: Optional[str] = data.get('template')
+        cv_content_json: Optional[Dict[Any, Any]] = data.get('content')
+
         if not language or not format_type:
-            return jsonify({'error': 'Dados incompletos'}), 400
+            return jsonify({'error': 'Parâmetros "language" ou "format" ausentes.'}), 400
+        
+        root_dir = get_project_root()
+        temp_json_file_path: Optional[str] = None
+        
+        if cv_content_json:
+            try:
+                # Save content to a temporary file for DataLoader
+                # Ensure temp file is created in a writable directory, preferably within project for consistency
+                temp_dir = os.path.join(root_dir, "temp_cv_data") # Create a specific temp dir
+                os.makedirs(temp_dir, exist_ok=True)
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=f'_{language}.json', mode='w',
+                    encoding='utf-8', dir=temp_dir
+                ) as temp_f:
+                    json.dump(cv_content_json, temp_f)
+                    temp_json_file_path = temp_f.name
+                app.logger.info(f"Temporary CV data saved to: {temp_json_file_path}")
+            except Exception as e:
+                app.logger.error(f"Failed to save temporary CV data: {e}")
+                return jsonify({'error': f'Falha ao processar dados do CV: {str(e)}'}), 500
+        
+        data_loader = DataLoader(
+            language_code=language,
+            json_file_path=temp_json_file_path, # Will be absolute path if created
+            root_dir=root_dir # DataLoader uses this to find curriculo_XX.json if temp_json_file_path is None
+        )
+        
+        template_manager = TemplateManager(root_dir=root_dir)
+        
+        # Determine actual template name to load (e.g., 'pdf_moderno', 'docx', 'pdf_ats')
+        # format_type: 'pdf', 'docx'. template_selection: 'moderno', 'ats', or base format name
+        actual_template_name = format_type
+        if template_selection and template_selection != format_type:
+            if format_type == 'pdf' and template_selection == 'ats':
+                actual_template_name = 'pdf_ats'
+            else:
+                actual_template_name = f"{format_type}_{template_selection}"
+        
+        app.logger.info(f"Attempting to load template: '{actual_template_name}' "
+                        f"(format: {format_type}, selection: {template_selection})")
         
         try:
-            # Determinar qual script usar com base no formato escolhido
-            root_dir = os.path.dirname(os.path.dirname(__file__))
-            print(f"Diretório raiz: {root_dir}")
-            
-            if format_type == 'pdf_ats':
-                script = os.path.join(root_dir, 'curriculo_pdf_ats.py')
-            elif format_type.startswith('pdf'):
-                script = os.path.join(root_dir, 'curriculo_pdf.py')
-            else:  # docx e outros
-                script = os.path.join(root_dir, 'curriculo_docx.py')
-                
-            print(f"Script selecionado: {script}")
-            
-            # Se o conteúdo foi enviado diretamente, salvar em um arquivo temporário
-            temp_json_file = None
-            if content:
-                print("Usando conteúdo JSON enviado pelo cliente")
-                import tempfile
-                
-                # Criar arquivo temporário com o conteúdo JSON
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{language}.json', mode='w', encoding='utf-8')
-                json.dump(content, temp_file)
-                temp_file.close()
-                temp_json_file = temp_file.name
-                
-                # Ajustar os argumentos para usar o arquivo temporário
-                cmd = [sys.executable, script, language, '--json-file', temp_json_file]
-            else:
-                # Preparar os argumentos normais
-                cmd = [sys.executable, script, language]
-            
-            # Se um template específico foi selecionado, adicioná-lo aos argumentos
-            if template and template != format_type:
-                if '_' in template:
-                    # O nome do template já inclui o formato, usar como está
-                    cmd.extend(['--template', template])
-                else:
-                    # Adicionar o formato como prefixo
-                    cmd.extend(['--template', f"{format_type}_{template}"])
-            elif format_type and '_' in format_type:
-                # Se o formato já é um template composto (como pdf_ats), passá-lo como template
-                cmd.extend(['--template', format_type])
-                
-            print(f"Comando: {' '.join(cmd)}")
-              # Executar o script Python
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            
-            # Limpar arquivo temporário se foi criado
-            if 'temp_json_file' in locals() and temp_json_file and os.path.exists(temp_json_file):
-                try:
-                    os.unlink(temp_json_file)
-                    print(f"Arquivo temporário excluído: {temp_json_file}")
-                except Exception as e:
-                    print(f"Erro ao excluir arquivo temporário: {str(e)}")
-            
-            if result.returncode != 0:
-                print(f"Erro ao gerar currículo: {result.stderr}")
-                return jsonify({'error': result.stderr}), 500
-                
-            # Localizar o arquivo gerado
-            output_dir = os.path.join(root_dir)
-            
-            # Procurar o arquivo gerado (suponha que termina com o código do idioma e a extensão apropriada)
-            file_extension = '.pdf' if format_type.startswith('pdf') else '.docx'
-              # Ler a saída para encontrar o nome do arquivo gerado
-            output = result.stdout
-            filename = None
-            
-            for line in output.splitlines():
-                if 'Arquivo gerado:' in line:
-                    filename = line.split('Arquivo gerado:')[-1].strip()
-                    break
-                    
-            if not filename:
-                # Tentar encontrar qualquer arquivo recém-criado
-                files = glob.glob(os.path.join(output_dir, f"*{file_extension}"))
-                if files:
-                    # Ordenar por data de modificação e pegar o mais recente
-                    filename = sorted(files, key=os.path.getmtime)[-1]
-                    filename = os.path.basename(filename)
-            
-            if not filename:
-                return jsonify({'error': 'Não foi possível encontrar o arquivo gerado'}), 500
-                
-            print(f"Arquivo gerado: {filename}")
-            file_path = os.path.join(root_dir, filename)
-            
-            # Verificar se o arquivo realmente existe
-            if not os.path.exists(file_path):
-                print(f"ERRO: Arquivo gerado não encontrado: {file_path}")
-                return jsonify({'error': 'Arquivo gerado não encontrado no servidor'}), 500
-                
-            # Comportamento diferente baseado no ambiente
-            if is_production():
-                # Em produção (Render), usar sistema temporário
-                import uuid
-                file_id = str(uuid.uuid4())
-                  # Armazenar o caminho completo no cache global
-                global file_cache
-                file_cache[file_id] = file_path
-                
-                return jsonify({
-                    'success': True, 
-                    'filename': filename,
-                    'file_id': file_id,
-                    'download_url': url_for('download_file', file_id=file_id)
-                })
-            else:
-                # Em ambiente local, usar sistema de arquivos normal
-                # Garantir que a URL tenha o nome do arquivo correto
-                download_url = url_for('download_file_local', filename=filename)
-                print(f"URL de download local gerada: {download_url}")
-                print(f"Caminho completo do arquivo: {file_path}")
-                return jsonify({
-                    'success': True, 
-                    'filename': filename,
-                    'download_url': download_url,
-                    'file_path': file_path  # Adicionar o caminho completo para depuração
-                })
-            
-        except Exception as e:
-            print(f"Erro ao gerar currículo: {str(e)}")
-            return jsonify({'error': str(e)}), 500
-            
-    except Exception as e:
-        return jsonify({'error': f'Erro ao processar requisição: {str(e)}'}), 500
-
-@app.route('/download/<file_id>')
-def download_file(file_id):
-    """Download de um arquivo usando file_id temporário (para ambiente de produção)."""
-    # Verificar se o ID do arquivo existe no cache
-    global file_cache
-    if file_id not in file_cache:
-        return jsonify({'error': 'Arquivo não encontrado ou expirado'}), 404
+            template_module = template_manager.get_template(actual_template_name)
+        except ValueError: # Template not found, try base format as fallback
+            app.logger.warning(f"Template '{actual_template_name}' not found. Trying base '{format_type}'.")
+            try:
+                template_module = template_manager.get_template(format_type)
+                actual_template_name = format_type # Update to the one actually loaded
+            except ValueError as e_base:
+                app.logger.error(f"Base template '{format_type}' also not found: {e_base}")
+                if temp_json_file_path and os.path.exists(temp_json_file_path):
+                    os.unlink(temp_json_file_path)
+                return jsonify({'error': f"Template '{actual_template_name}' ou base '{format_type}' não encontrado."}), 400
         
-    file_path = file_cache[file_id]
-    
-    if not os.path.exists(file_path):
-        return jsonify({'error': 'Arquivo não encontrado no servidor'}), 404
-    
-    # Determinar o tipo MIME com base na extensão
-    filename = os.path.basename(file_path)
-    mimetype = 'application/pdf' if filename.endswith('.pdf') else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    
-    # Ler o conteúdo do arquivo
-    with open(file_path, 'rb') as f:
-        content = f.read()
-    
-    # Usar serve_temporary_file para enviar o arquivo
-    return serve_temporary_file(content, filename, mimetype)
+        app.logger.info(f"Using template module: {actual_template_name}")
 
-@app.route('/download_local/<filename>')
-def download_file_local(filename):
-    """Download de um arquivo usando o sistema de arquivos local."""
-    root_dir = os.path.dirname(os.path.dirname(__file__))
-    file_path = os.path.join(root_dir, filename)
-    
-    print(f"Tentando baixar o arquivo: {file_path}")
-    
-    if not os.path.exists(file_path):
-        print(f"ERRO: Arquivo não encontrado: {file_path}")
-        return jsonify({'error': 'Arquivo não encontrado no servidor'}), 404
-    
-    try:
-        # Determinar o tipo MIME com base na extensão
-        mimetype = 'application/pdf' if filename.endswith('.pdf') else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        generator_instance: Optional[Any] = None # BaseCvGenerator type
+        if actual_template_name == 'pdf_ats':
+            generator_instance = PdfAtsGenerator(data_loader, template_module)
+        elif format_type == 'pdf': # Covers 'pdf', 'pdf_moderno', etc.
+            generator_instance = PdfGenerator(data_loader, template_module)
+        elif format_type == 'docx': # Covers 'docx', 'docx_variant', etc.
+            generator_instance = DocxGenerator(data_loader, template_module)
         
-        # Usar o método mais robusto para enviar o arquivo
-        return send_file(
-            file_path, 
-            as_attachment=True, 
-            download_name=filename,
-            mimetype=mimetype
-        )
-    except Exception as e:
-        print(f"ERRO ao enviar arquivo: {str(e)}")
-        return jsonify({'error': f'Erro ao baixar arquivo: {str(e)}'}), 500
+        if not generator_instance:
+            if temp_json_file_path and os.path.exists(temp_json_file_path):
+                os.unlink(temp_json_file_path)
+            return jsonify({'error': f'Formato de CV não suportado: {format_type}'}), 400
 
-# Adicionar função para servir arquivos temporários
+        output_file_abs_path = generator_instance.generate_cv() # Returns absolute path
+        
+    except Exception as e: # Catch-all for unexpected errors during setup
+        app.logger.error(f"Error during CV generation setup: {type(e).__name__} - {str(e)}", exc_info=True)
+        if 'temp_json_file_path' in locals() and temp_json_file_path and os.path.exists(temp_json_file_path):
+             try: os.unlink(temp_json_file_path)
+             except OSError: app.logger.warning(f"Could not clean up temp file {temp_json_file_path} on error.")
+        return jsonify({'error': f'Erro interno ao preparar geração do currículo: {str(e)}'}), 500
+    finally: # Ensure temp file is cleaned up if created by this endpoint run
+        if 'temp_json_file_path' in locals() and temp_json_file_path and os.path.exists(temp_json_file_path):
+            try:
+                os.unlink(temp_json_file_path)
+                app.logger.info(f"Temporary JSON file '{temp_json_file_path}' deleted.")
+            except OSError as e_del:
+                app.logger.warning(f"Failed to delete temporary JSON file '{temp_json_file_path}': {e_del}")
 
-def serve_temporary_file(content, filename, mimetype):
-    """Serve um arquivo gerado sem salvá-lo permanentemente no servidor."""
-    from io import BytesIO
-    from flask import send_file
-    
-    print(f"Servindo arquivo temporário: {filename} ({len(content)} bytes)")
-    print(f"Tipo MIME: {mimetype}")
-    
-    buffer = BytesIO()
-    buffer.write(content)
-    buffer.seek(0)
-    
-    try:
-        return send_file(
-            buffer,
-            as_attachment=True,
-            download_name=filename,  # 'download_name' em versões recentes do Flask
-            mimetype=mimetype
-        )
-    except Exception as e:
-        print(f"ERRO ao servir arquivo temporário: {str(e)}")
-        return jsonify({'error': f'Erro ao servir arquivo temporário: {str(e)}'}), 500
+    if not output_file_abs_path or not os.path.exists(output_file_abs_path):
+         app.logger.error(f"CV generation failed or file not found at: {output_file_abs_path}")
+         return jsonify({'error': 'Falha ao gerar o arquivo ou arquivo não encontrado no servidor.'}), 500
 
-@app.route('/debug/file_exists/<filename>')
-def debug_file_exists(filename):
-    """Rota de depuração para verificar se um arquivo existe."""
-    root_dir = os.path.dirname(os.path.dirname(__file__))
-    file_path = os.path.join(root_dir, filename)
-    
-    if os.path.exists(file_path):
-        file_info = {
-            'exists': True,
-            'path': file_path,
-            'size': os.path.getsize(file_path),
-            'modified': os.path.getmtime(file_path),
-            'is_file': os.path.isfile(file_path)
-        }
-        return jsonify(file_info)
-    else:
+    filename = os.path.basename(output_file_abs_path)
+    app.logger.info(f"CV generated successfully: {filename} at {output_file_abs_path}")
+
+    if is_production():
+        file_id = file_cache_manager.add_file(output_file_abs_path)
         return jsonify({
-            'exists': False,
-            'path': file_path,
-            'message': 'Arquivo não encontrado'
-        }), 404
+            'success': True, 'filename': filename, 'file_id': file_id,
+            'download_url': url_for('download_cached_file', file_id=file_id)
+        })
+    else: # Local development
+        # For local dev, files are in 'generated_cvs'.
+        # We need a route to serve them from there, relative to project root.
+        # `filename` here would be like "Curriculo_JohnDoe_en.pdf"
+        # The actual file is at "PROJECT_ROOT/generated_cvs/Curriculo_JohnDoe_en.pdf"
+        # So, the download URL should reflect this structure.
+        relative_path_for_download = os.path.join("generated_cvs", filename)
+        return jsonify({
+            'success': True, 'filename': filename,
+            'download_url': url_for('download_local_dev_file', structured_filename=relative_path_for_download)
+        })
+
+
+@app.route('/download_cached/<file_id>')
+def download_cached_file(file_id: str) -> Any:
+    """
+    Serves a cached file for download (typically used in production).
+
+    Args:
+        file_id (str): The unique ID of the file in the cache.
+
+    Returns:
+        Response: Flask send_file response or JSON error.
+    """
+    file_path = file_cache_manager.get_file_path(file_id)
+    if not file_path or not os.path.exists(file_path):
+        app.logger.warning(f"Cached file ID '{file_id}' not found or file missing at '{file_path}'.")
+        return jsonify({'error': 'Arquivo não encontrado ou expirado.'}), 404
+    
+    # Optional: Remove file from cache after download for single-use links
+    # file_cache_manager.remove_file(file_id)
+    
+    app.logger.info(f"Serving cached file: {file_path}")
+    return send_file(file_path, as_attachment=True)
+
+
+@app.route('/download_dev/<path:structured_filename>')
+def download_local_dev_file(structured_filename: str) -> Any:
+    """
+    Serves a file for download during local development.
+    The filename can include subdirectories relative to project root (e.g., "generated_cvs/mycv.pdf").
+
+    IMPORTANT: This route is intended for development only and is NOT safe for production
+               if it allows arbitrary path traversal.
+
+    Args:
+        structured_filename (str): The filename, potentially including "generated_cvs/" prefix.
+
+    Returns:
+        Response: Flask send_file response or JSON error.
+    """
+    if is_production():
+        app.logger.error("Attempt to access /download_dev in production.")
+        return jsonify({'error': 'Acesso direto a arquivos desabilitado em produção.'}), 403
+        
+    # Construct path relative to project root.
+    # os.path.normpath and os.path.join ensure path is safe and correct.
+    # structured_filename is already like "generated_cvs/filename.pdf"
+    file_path = os.path.join(get_project_root(), structured_filename)
+    file_path = os.path.normpath(file_path)
+
+    # Security check: Ensure the path is still within the project root (or a designated public dir)
+    # This is a basic check. For true security, serve from a dedicated static folder if possible.
+    if not file_path.startswith(os.path.normpath(get_project_root())):
+        app.logger.error(f"Attempt to access file outside project root: {file_path}")
+        return jsonify({'error': 'Acesso negado.'}), 403
+        
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        app.logger.warning(f"Local dev file not found: {file_path}")
+        return jsonify({'error': 'Arquivo não encontrado no servidor.'}), 404
+    
+    app.logger.info(f"Serving local dev file: {file_path}")
+    return send_file(file_path, as_attachment=True)
+
+
+@app.route('/debug/file_exists/<path:filename>')
+def debug_file_exists_endpoint(filename: str) -> Any: # Renamed for clarity
+    """
+    Debug endpoint to check if a file exists relative to project root.
+    The filename can include subdirectories (e.g., "generated_cvs/mycv.pdf").
+
+    Args:
+        filename (str): The filename (path relative to project root).
+
+    Returns:
+        Response: JSON response with file existence status and details.
+    """
+    file_path = os.path.join(get_project_root(), filename)
+    file_path = os.path.normpath(file_path) # Normalize path
+    exists = os.path.exists(file_path)
+    is_file = os.path.isfile(file_path) if exists else False
+    size = os.path.getsize(file_path) if is_file else None
+    
+    return jsonify({
+        'requested_filename': filename,
+        'absolute_path': file_path,
+        'exists': exists,
+        'is_file': is_file,
+        'size_bytes': size
+    })
+
 
 if __name__ == '__main__':
-    # Desenvolvimento local
-    app.run(debug=True)
+    # Configuration for local development
+    app.run(debug=True, host='0.0.0.0', port=5000) # Standard Flask dev port
 else:
-    # Em produção, debug deve ser False
-    app.config['DEBUG'] = False
+    # Production environment (e.g., Gunicorn)
+    # Logging should be configured by the WSGI server or a dedicated logging setup.
+    # This basic setup is a fallback if no other logging is configured.
+    if not app.debug and not app.logger.handlers: # Avoid adding handlers if already configured
+        # Example: Log to stdout for platforms like Render that collect stdout/stderr
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.INFO if os.environ.get('FLASK_DEBUG') else logging.WARNING)
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s [in %(pathname)s:%(lineno)d]'
+        )
+        stream_handler.setFormatter(formatter)
+        app.logger.addHandler(stream_handler)
+        app.logger.setLevel(logging.INFO if os.environ.get('FLASK_DEBUG') else logging.WARNING)
+        app.logger.info("Flask app logger configured for production (fallback).")
