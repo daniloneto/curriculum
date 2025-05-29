@@ -1,0 +1,32 @@
+{
+  "languageName": "Português (Mock)",
+  "nome": "João Ninguém",
+  "email": "joao.ninguem@example.com",
+  "telefone": "987-654-3210",
+  "linkedin": "linkedin.com/in/joaoninguem",
+  "outputFileName": "CV_JoaoNinguem_PT_mock",
+  "secoes": {
+    "resumoProfissional": {
+      "titulo": "Resumo Profissional",
+      "conteudo": "Um breve resumo em português."
+    },
+    "experienciaProfissional": {
+      "titulo": "Experiência Profissional",
+      "empregos": [
+        {
+          "cargo": "Engenheiro de Software",
+          "empresa": "Soluções Tecnológicas Ltda.",
+          "periodo": "2020-Atual",
+          "descricao": ["Desenvolveu coisas legais.", "Liderou uma pequena equipe."]
+        }
+      ]
+    },
+    "habilidadesTecnicas": {
+      "titulo": "Habilidades Técnicas",
+      "habilidades": [
+        {"nome": "Python", "nivel": "5"},
+        {"nome": "Java", "nivel": "4"}
+      ]
+    }
+  }
+}

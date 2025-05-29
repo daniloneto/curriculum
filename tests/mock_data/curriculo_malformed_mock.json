@@ -1,0 +1,10 @@
+{
+  "languageName": "Malformed Mock",
+  "name": "Error Maker",
+  "email": "error@example.com",
+  "secoes": {
+    "professionalSummary": {
+      "title": "Summary",
+      "content": "This JSON is intentionally malformed."
+    } 
+  }, 
