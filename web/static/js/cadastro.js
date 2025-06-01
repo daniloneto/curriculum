@@ -80,7 +80,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Limpar o formulário quando o botão for clicado
     resetButton.addEventListener('click', function() {
         if (confirm('Deseja limpar todos os campos? As alterações não salvas serão perdidas.')) {
-            generateForm(curriculoData); // Recarregar o formulário com os dados originais
+            if (curriculoData) {
+                const emptyData = getEmptyCurriculoData(curriculoData);
+                generateForm(emptyData); // Gera o formulário totalmente vazio
+            } else {
+                curriculoForm.innerHTML = '';
+            }
         }
     });
     
@@ -804,5 +809,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 input.setAttribute('data-key', newKey);
             }
         });
+    }
+    
+    // Função utilitária para gerar um currículo vazio com a mesma estrutura
+    function getEmptyCurriculoData(data) {
+        if (Array.isArray(data)) {
+            return [];
+        } else if (typeof data === 'object' && data !== null) {
+            const emptyObj = {};
+            for (const key in data) {
+                if (Array.isArray(data[key])) {
+                    emptyObj[key] = [];
+                } else if (typeof data[key] === 'object' && data[key] !== null) {
+                    emptyObj[key] = getEmptyCurriculoData(data[key]);
+                } else if (typeof data[key] === 'boolean') {
+                    emptyObj[key] = false;
+                } else {
+                    emptyObj[key] = '';
+                }
+            }
+            return emptyObj;
+        }
+        return '';
     }
 });
