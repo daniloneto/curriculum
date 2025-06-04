@@ -9,53 +9,19 @@ from reportlab.pdfbase.ttfonts import TTFont
 import os
 import json
 import sys
-import glob
 import argparse
-from templates import TemplateManager
 import re
+from templates import TemplateManager
 
-# Função genérica para obter valores do JSON de maneira padronizada
-def get_field(data, primary_key, fallback_key=None, additional_fallbacks=None):
-    if primary_key in data:
-        return data[primary_key]
-    elif fallback_key and fallback_key in data:
-        return data[fallback_key]
-    
-    # Verificar chaves adicionais específicas para alguns campos
-    if additional_fallbacks:
-        for key in additional_fallbacks:
-            if key in data:
-                return data[key]
-    
-    return None
+from utils import (
+    get_available_languages,
+    get_field,
+    get_jobs,
+    get_section_content,
+    get_section_list,
+    get_section_title,
+)
 
-# Função genérica para obter título de seção
-def get_section_title(section_data, title_keys=['titulo', 'title', 'titre', 'titel']):
-    for key in title_keys:
-        if key in section_data:
-            return section_data[key]
-    return "N/A"  # Fallback
-
-# Função genérica para obter conteúdo de seção
-def get_section_content(section_data, content_keys=['conteudo', 'content', 'contenido', 'inhalt']):
-    for key in content_keys:
-        if key in section_data:
-            return section_data[key]
-    return ""  # Fallback
-
-# Função genérica para obter lista de itens
-def get_section_list(section_data, list_keys=['lista', 'list', 'liste', 'lista']):
-    for key in list_keys:
-        if key in section_data:
-            return section_data[key]
-    return []  # Fallback
-
-# Função genérica para obter lista de empregos/experiências
-def get_jobs(section_data, jobs_keys=['empregos', 'jobs', 'empleos', 'emplois']):
-    for key in jobs_keys:
-        if key in section_data:
-            return section_data[key]
-    return []  # Fallback
 
 # Função para extrair palavras-chave do resumo profissional
 def extract_keywords_from_resume(resume_text, min_length=4):
@@ -110,419 +76,392 @@ def extract_keywords_from_resume(resume_text, min_length=4):
     return top_words
 
 # Configurar os argumentos de linha de comando
-parser = argparse.ArgumentParser(description='Gerar currículo em formato PDF otimizado para ATS.')
-parser.add_argument('language', nargs='?', help='Código do idioma (ex: pt, en, es)')
-parser.add_argument('--template', '-t', help='Nome do template a ser usado', default='pdf_ats')
-parser.add_argument('--json-file', help='Caminho para um arquivo JSON personalizado', default=None)
-args = parser.parse_args()
 
-# Função para listar idiomas disponíveis
-def get_available_languages():
-    # Procurar todos os arquivos JSON que seguem o padrão curriculo_XX.json
-    json_files = glob.glob('curriculo_*.json')
-    languages = {}
-    
-    for file in json_files:
-        # Extrair o código do idioma do nome do arquivo (curriculo_XX.json -> XX)
-        lang_code = file.replace('curriculo_', '').replace('.json', '')
-        
-        # Carregar o arquivo para obter o nome do idioma na própria língua
-        try:
-            with open(file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
-                # Verificar se o arquivo tem a estrutura esperada
-                if 'languageName' in data:
-                    lang_name = data['languageName']
-                else:
-                    # Fallback para casos onde o nome do idioma não está definido
-                    lang_name = lang_code.upper()
-                
-                languages[lang_code] = {
-                    'name': lang_name,
-                    'file': file
-                }
-        except:
-            # Se houver erro ao carregar ou analisar, pular este arquivo
-            pass
-    
-    return languages
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Gerar currículo em formato PDF otimizado para ATS."
+    )
+    parser.add_argument(
+        "language", nargs="?", help="Código do idioma (ex: pt, en, es)"
+    )
+    parser.add_argument(
+        "--template", "-t", default="pdf_ats", help="Nome do template a ser usado"
+    )
+    parser.add_argument(
+        "--json-file", help="Caminho para um arquivo JSON personalizado", default=None
+    )
+    return parser.parse_args()
 
-# Determinar o idioma a ser usado
-available_languages = get_available_languages()
+def load_resume_data(language: str | None, json_file: str | None) -> tuple[dict, str]:
+    available_languages = get_available_languages()
+    default_lang = "pt" if "pt" in available_languages else next(iter(available_languages), None)
+    selected_lang = default_lang
+    if language and language.lower() in available_languages:
+        selected_lang = language.lower()
 
-# Default para português se disponível, caso contrário usa o primeiro idioma disponível
-default_lang = 'pt' if 'pt' in available_languages else list(available_languages.keys())[0] if available_languages else None
-
-# Verificar qual idioma usar com base nos argumentos de linha de comando
-selected_lang = default_lang
-if args.language:
-    lang_arg = args.language.lower()
-    if lang_arg in available_languages:
-        selected_lang = lang_arg
-
-# Se não houver idiomas disponíveis, terminar o programa
-if not selected_lang and not args.json_file:
-    print("Erro: Não foram encontrados arquivos de idioma válidos.")
-    sys.exit(1)
-
-# Carregar o arquivo JSON
-if args.json_file:
-    print(f"Usando arquivo JSON personalizado: {args.json_file}")
-    # Usar o arquivo JSON personalizado
-    try:
-        with open(args.json_file, 'r', encoding='utf-8') as file:
-            data = json.load(file)
-    except Exception as e:
-        print(f"Erro ao carregar arquivo JSON personalizado: {str(e)}")
+    if not selected_lang and not json_file:
+        print("Erro: Não foram encontrados arquivos de idioma válidos.")
         sys.exit(1)
-else:
-    # Carregar o arquivo JSON do idioma selecionado
-    json_file = available_languages[selected_lang]['file']
-    with open(json_file, 'r', encoding='utf-8') as file:
-        data = json.load(file)
 
-# Extrair dados básicos do JSON
-# Estrutura padronizada para todas as línguas
-nome = get_field(data, 'nome', 'name', ['nombre'])
-email = data['email']  # Email geralmente é o mesmo em qualquer idioma
-telefone = get_field(data, 'telefone', 'phone')
-linkedin = data['linkedin']  # LinkedIn geralmente é o mesmo em qualquer idioma
+    if json_file:
+        with open(json_file, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        return data, selected_lang or "pt"
 
-# Determinar qual é a chave principal para seções
-secoes_key = None
-for key in ['secoes', 'sections', 'secciones', 'sektionen']:
-    if key in data:
-        secoes_key = key
-        break
+    json_file_path = available_languages[selected_lang]["file"]
+    with open(json_file_path, "r", encoding="utf-8") as file:
+        return json.load(file), selected_lang
 
-# Se não encontrarmos a chave das seções, não podemos continuar
-if not secoes_key:
-    print("Erro: Formato de arquivo JSON inválido. A chave de seções não foi encontrada.")
-    sys.exit(1)
+def main() -> None:
+    args = parse_args()
+    data, selected_lang = load_resume_data(args.language, args.json_file)
 
-secoes = data[secoes_key]
-
-# Carregar o template
-template_manager = TemplateManager()
-template_name = args.template
-
-try:
-    template = template_manager.get_template(template_name)
-    print(f"Usando template: {template_name}")
-except ValueError as e:
-    print(f"Erro ao carregar template: {str(e)}")
-    print(f"Templates disponíveis: {', '.join(template_manager.list_templates())}")
-    print("Usando o template padrão 'pdf_ats'.")
-    template = template_manager.get_template('pdf_ats')
-
-# Obter nome do arquivo para saída PDF
-output_filename = get_field(data, 'nomeArquivoSaida', 'outputFileName')
-if not output_filename:    # Se nenhum nome de arquivo for especificado, criar um a partir do nome e idioma
-    if nome:
-        output_filename = f"Curriculo_ATS_{nome.replace(' ', '_')}_{selected_lang}.pdf"
-    else:
-        output_filename = f"Curriculo_ATS_{selected_lang}.pdf"
-else:
-    # Adicionar sufixo ATS ao nome do arquivo e garantir extensão .pdf
-    base_name, ext = os.path.splitext(output_filename)
-    output_filename = f"{base_name}_ATS.pdf"
-
-# Criar documento PDF
-doc = template.create_document(output_filename)
-
-# Obter estilos definidos no template
-styles = template.get_styles()
-
-# Lista para elementos do PDF
-elements = []
-
-# Montar o currículo visual
-template.add_title(elements, nome, email, telefone, linkedin, styles)
-
-# Resumo Profissional - procurar por várias possíveis chaves
-resume_section = None
-for key in ['resumoProfissional', 'professionalSummary', 'resumenProfesional', 'resumentProfessionnel']:
-    if key in secoes:
-        resume_section = secoes[key]
-        break
-
-# Extrair palavras-chave do resumo profissional para uso posterior
-keywords = []
-if resume_section:
-    resume_text = get_section_content(resume_section)
-    if resume_text:
-        keywords = extract_keywords_from_resume(resume_text)
+    # Extrair dados básicos do JSON
+    # Estrutura padronizada para todas as línguas
+    nome = get_field(data, 'nome', 'name', ['nombre'])
+    email = data['email']  # Email geralmente é o mesmo em qualquer idioma
+    telefone = get_field(data, 'telefone', 'phone')
+    linkedin = data['linkedin']  # LinkedIn geralmente é o mesmo em qualquer idioma
     
-    template.add_section_title(elements, get_section_title(resume_section), styles)
-    elements.append(Paragraph(resume_text, styles['normal']))
-    elements.append(Spacer(1, 0.1*inch))
-
-# Experiência Profissional - procurar por várias possíveis chaves
-experience_section = None
-for key in ['experienciaProfissional', 'workExperience', 'experienciaLaboral', 'experienceProfessionnelle']:
-    if key in secoes:
-        experience_section = secoes[key]
-        break
-
-if experience_section:
-    template.add_section_title(elements, get_section_title(experience_section), styles)
+    # Determinar qual é a chave principal para seções
+    secoes_key = None
+    for key in ['secoes', 'sections', 'secciones', 'sektionen']:
+        if key in data:
+            secoes_key = key
+            break
     
-    # Obter lista de empregos
-    jobs = get_jobs(experience_section)
+    # Se não encontrarmos a chave das seções, não podemos continuar
+    if not secoes_key:
+        print("Erro: Formato de arquivo JSON inválido. A chave de seções não foi encontrada.")
+        sys.exit(1)
     
-    # Adicionar empregos no formato otimizado para ATS
-    for job in jobs:
-        position_raw = get_field(job, 'cargo', 'position') # e.g., "Senior Development Consultant - Avanade"
-        period = get_field(job, 'periodo', 'period')
-
-        position = position_raw
-        company = get_field(job, 'empresa', 'company') # Try dedicated field first
-
-        if not company and position_raw and ' - ' in position_raw: # If no dedicated company field, parse from position_raw
-            parts = position_raw.split(' - ', 1)
-            position = parts[0].strip()
-            company = parts[1].strip()
-        elif not company: # Ensure company is an empty string if not found/parsed
-            company = ""
-        
-        # Obter descrição - procurar por várias possíveis chaves
-        description_content = None # Initialize to None
-        for key in ['descricao', 'description', 'descripcion']:
-            if key in job:
-                description_content = job[key]
-                break
-        
-        # Define localized labels
-        if selected_lang == 'en':
-            labels = {
-                "position": "Position",
-                "company": "Company",
-                "period": "Period",
-                "description_heading": "Responsibilities and Achievements"
-            }
-        elif selected_lang == 'es':
-            labels = {
-                "position": "Cargo", # Or "Puesto"
-                "company": "Empresa",
-                "period": "Período",
-                "description_heading": "Responsabilidades y Logros"
-            }
-        else: # Default to Portuguese
-            labels = {
-                "position": "Cargo",
-                "company": "Empresa",
-                "period": "Período",
-                "description_heading": "Responsabilidades e Realizações"
-            }
-
-        # Usar a função especializada do template ATS
-        if hasattr(template, 'add_job_experience'):
-            template.add_job_experience(elements, position, company, period, description_content, styles, labels)
+    secoes = data[secoes_key]
+    
+    # Carregar o template
+    template_manager = TemplateManager()
+    template_name = args.template
+    
+    try:
+        template = template_manager.get_template(template_name)
+        print(f"Usando template: {template_name}")
+    except ValueError as e:
+        print(f"Erro ao carregar template: {str(e)}")
+        print(f"Templates disponíveis: {', '.join(template_manager.list_templates())}")
+        print("Usando o template padrão 'pdf_ats'.")
+        template = template_manager.get_template('pdf_ats')
+    
+    # Obter nome do arquivo para saída PDF
+    output_filename = get_field(data, 'nomeArquivoSaida', 'outputFileName')
+    if not output_filename:    # Se nenhum nome de arquivo for especificado, criar um a partir do nome e idioma
+        if nome:
+            output_filename = f"Curriculo_ATS_{nome.replace(' ', '_')}_{selected_lang}.pdf"
         else:
-            # Fallback caso o template não tenha a função especializada
-            if position:
-                elements.append(Paragraph(f"<b>{labels['position']}:</b> {position}", styles['bullet'])) # Use localized label
-            
-            if company:
-                 elements.append(Paragraph(f"<b>{labels['company']}:</b> {company}", styles['normal']))
-
-            if period:
-                elements.append(Paragraph(f"<b>{labels['period']}:</b> {period}", styles['normal'])) # Use localized label
-            
-            # Fallback description handling (simplified)
-            processed_desc_items = []
-            if isinstance(description_content, str):
-                processed_desc_items = [s.strip() for s in description_content.split('\\n') if s.strip()]
-                if not processed_desc_items and description_content.strip():
-                    processed_desc_items = [description_content.strip()]
-            elif isinstance(description_content, list):
-                processed_desc_items = [str(item).strip() for item in description_content if str(item).strip()]
-
-            if processed_desc_items:
-                elements.append(Paragraph(f"<b>{labels['description_heading']}:</b>", styles['normal'])) # Use localized label
-                for item_text in processed_desc_items:
-                    elements.append(Paragraph(f"- {item_text}", styles['bullet']))
-                
-            elements.append(Spacer(1, 0.1*inch))
-
-# Adicionar palavras-chave extraídas para melhorar a compatibilidade ATS
-if keywords and hasattr(template, 'add_keywords_section'):
-    # Adicionar palavras-chave do resumo e habilidades técnicas
-    skills_section = None
-    for key in ['habilidadesTecnicas', 'technicalSkills', 'habilidadesTecnicas', 'competencesTechniques']:
-        if key in secoes:
-            skills_section = secoes[key]
-            break
-    
-    if skills_section:
-        # Obter lista de habilidades
-        skills = []
-        for key in ['habilidades', 'skills', 'habilidades', 'competences']:
-            if key in skills_section:
-                skills = skills_section[key]
-                break
-        
-        # Adicionar nomes das habilidades à lista de palavras-chave
-        for skill in skills:
-            skill_name = get_field(skill, 'nome', 'name')
-            if skill_name:
-                keywords.append(skill_name)
-    
-    # Remover duplicatas e ordenar
-    keywords = list(set(keywords))
-    keywords.sort()
-    
-
-# Adicionar quebra de página antes das habilidades técnicas
-template.add_page_break(elements)
-
-# Habilidades Técnicas - procurar por várias possíveis chaves
-skills_section_content = None
-# Use a set for unique keys and then convert to list if necessary for order, or just iterate the set
-unique_skill_section_keys = {'habilidadesTecnicas', 'technicalSkills', 'competencesTechniques'}
-for key in unique_skill_section_keys:
-    if key in secoes:
-        skills_section_content = secoes[key]
-        break
-
-if skills_section_content:
-    template.add_section_title(elements, get_section_title(skills_section_content), styles)
-    
-    skill_objects_list = [] # This will hold the list of skill *objects*
-
-    if isinstance(skills_section_content, dict):
-        # Typical case: skills_section_content is an object like {"titulo": "...", "habilidades": [...]}
-        found_list = False
-        unique_skill_list_keys = {'habilidades', 'skills', 'competencias'}
-        for list_key in unique_skill_list_keys:
-            if list_key in skills_section_content and isinstance(skills_section_content[list_key], list):
-                skill_objects_list = skills_section_content[list_key]
-                found_list = True
-                break
-        if not found_list:
-            # If no list found under standard keys, it might be a single skill object.
-            if 'nombre' in skills_section_content and 'nivel' in skills_section_content:
-                 # Check it's not a container object with a title etc.
-                if not any(k in skills_section_content for k in ['titulo', 'title'] + list(unique_skill_list_keys)):
-                    skill_objects_list = [skills_section_content] # Treat as a list with one skill
-    elif isinstance(skills_section_content, list):
-        # Case: skills_section_content is directly a list of skill objects
-        skill_objects_list = skills_section_content
-    
-    for skill_item in skill_objects_list:
-        if not isinstance(skill_item, dict):
-            print(f"Aviso (ATS PDF): Item de habilidade não é um dicionário: {skill_item}. Pulando.")
-            continue
-        skill_name = get_field(skill_item, 'nombre', 'name')
-        skill_level_str = get_field(skill_item, 'nivel', 'level') # Get level as string
-        if skill_name and skill_level_str:
-            try:
-                skill_level = int(skill_level_str) # Convert to int
-                if hasattr(template, 'add_skill'):
-                    template.add_skill(elements, skill_name, styles, skill_level, lang=selected_lang) # Pass selected_lang
-                elif hasattr(template, 'add_skill_bar'): 
-                    template.add_skill_bar(elements, skill_name, styles, skill_level)
-            except ValueError:
-                print(f"Aviso (ATS PDF): Nível de habilidade inválido para '{skill_name}'. Esperado um número, recebido '{skill_level_str}'. Pulando.")
-    
-    elements.append(Spacer(1, 0.1*inch))
-
-# Certificações - procurar por várias possíveis chaves
-certifications_section = None
-for key in ['certificacoes', 'certifications', 'certificaciones', 'certifications']:
-    if key in secoes:
-        certifications_section = secoes[key]
-        break
-
-if certifications_section:
-    template.add_section_title(elements, get_section_title(certifications_section), styles)
-    certifications = get_section_list(certifications_section)
-    
-    for cert in certifications:
-        # Usar texto simples para certificações (sem emojis) para melhor compatibilidade ATS
-        elements.append(Paragraph(cert, styles['normal']))
-    
-    elements.append(Spacer(1, 0.1*inch))
-
-# Educação - procurar por várias possíveis chaves
-education_section = None
-for key in ['educacao', 'education', 'educacion', 'education']:
-    if key in secoes:
-        education_section = secoes[key]
-        break
-
-if education_section:
-    template.add_section_title(elements, get_section_title(education_section), styles)
-    
-    # Obter lista de formações
-    degrees = []
-    for key in ['formacao', 'degrees', 'formacion', 'diplomes']:
-        if key in education_section:
-            degrees = education_section[key]
-            break
-    
-    for degree in degrees:
-        elements.append(Paragraph(degree, styles['normal']))
-    
-    elements.append(Spacer(1, 0.1*inch))
-
-# Em Andamento - procurar por várias possíveis chaves
-in_progress_section = None
-for key in ['emAndamento', 'inProgress', 'enProgreso', 'enCours']:
-    if key in secoes:
-        in_progress_section = secoes[key]
-        break
-
-if in_progress_section:
-    template.add_section_title(elements, get_section_title(in_progress_section), styles)
-    
-    # Obter lista de cursos
-    courses = []
-    for key in ['cursos', 'courses', 'cursos', 'cours']:
-        if key in in_progress_section:
-            courses = in_progress_section[key]
-            break
-    
-    for course in courses:
-        elements.append(Paragraph(course, styles['normal']))
-
-template.add_keywords_section(elements, keywords, styles)
-
-# Gerar o PDF
-try:   
-    if os.path.exists(output_filename):
-        try:
-            # Tentar renomear temporariamente o arquivo existente
-            temp_name = output_filename + ".old"
-            if os.path.exists(temp_name):
-                os.remove(temp_name)
-            os.rename(output_filename, temp_name)
-            
-        # Gerar o novo PDF
-            doc.build(elements)
-            
-            # Se deu certo, remover o arquivo antigo
-            if os.path.exists(temp_name):
-                os.remove(temp_name)
-                
-        except Exception as e:
-            # Se falhar em renomear, tentar outro nome de arquivo
-            alternative_filename = os.path.splitext(output_filename)[0] + "_new.pdf"
-            doc = template.create_document(alternative_filename)
-            doc.build(elements)
-            output_filename = alternative_filename
+            output_filename = f"Curriculo_ATS_{selected_lang}.pdf"
     else:
-        # Se não existir, simplesmente criar o arquivo
-        doc.build(elements)
-        
-    print(f"Arquivo PDF otimizado para ATS salvo como: {output_filename}")
-    print("\nDicas para aumentar a compatibilidade com ATS:")
-    print("1. Use termos-chave específicos da sua área em seu resumo profissional")
-    print("2. Liste habilidades técnicas relevantes para a vaga desejada")
-    print("3. Mantenha um formato limpo e direto, evitando tabelas complexas")
-    print("4. Certifique-se de incluir datas completas nas experiências (mm/aaaa - mm/aaaa)")
+        # Adicionar sufixo ATS ao nome do arquivo e garantir extensão .pdf
+        base_name, ext = os.path.splitext(output_filename)
+        output_filename = f"{base_name}_ATS.pdf"
     
-except Exception as e:
-    print(f"Erro ao gerar o PDF: {str(e)}")
-    print("Tente fechar o arquivo PDF se ele estiver aberto em outro programa.")
+    # Criar documento PDF
+    doc = template.create_document(output_filename)
+    
+    # Obter estilos definidos no template
+    styles = template.get_styles()
+    
+    # Lista para elementos do PDF
+    elements = []
+    
+    # Montar o currículo visual
+    template.add_title(elements, nome, email, telefone, linkedin, styles)
+    
+    # Resumo Profissional - procurar por várias possíveis chaves
+    resume_section = None
+    for key in ['resumoProfissional', 'professionalSummary', 'resumenProfesional', 'resumentProfessionnel']:
+        if key in secoes:
+            resume_section = secoes[key]
+            break
+    
+    # Extrair palavras-chave do resumo profissional para uso posterior
+    keywords = []
+    if resume_section:
+        resume_text = get_section_content(resume_section)
+        if resume_text:
+            keywords = extract_keywords_from_resume(resume_text)
+        
+        template.add_section_title(elements, get_section_title(resume_section), styles)
+        elements.append(Paragraph(resume_text, styles['normal']))
+        elements.append(Spacer(1, 0.1*inch))
+    
+    # Experiência Profissional - procurar por várias possíveis chaves
+    experience_section = None
+    for key in ['experienciaProfissional', 'workExperience', 'experienciaLaboral', 'experienceProfessionnelle']:
+        if key in secoes:
+            experience_section = secoes[key]
+            break
+    
+    if experience_section:
+        template.add_section_title(elements, get_section_title(experience_section), styles)
+        
+        # Obter lista de empregos
+        jobs = get_jobs(experience_section)
+        
+        # Adicionar empregos no formato otimizado para ATS
+        for job in jobs:
+            position_raw = get_field(job, 'cargo', 'position') # e.g., "Senior Development Consultant - Avanade"
+            period = get_field(job, 'periodo', 'period')
+    
+            position = position_raw
+            company = get_field(job, 'empresa', 'company') # Try dedicated field first
+    
+            if not company and position_raw and ' - ' in position_raw: # If no dedicated company field, parse from position_raw
+                parts = position_raw.split(' - ', 1)
+                position = parts[0].strip()
+                company = parts[1].strip()
+            elif not company: # Ensure company is an empty string if not found/parsed
+                company = ""
+            
+            # Obter descrição - procurar por várias possíveis chaves
+            description_content = None # Initialize to None
+            for key in ['descricao', 'description', 'descripcion']:
+                if key in job:
+                    description_content = job[key]
+                    break
+            
+            # Define localized labels
+            if selected_lang == 'en':
+                labels = {
+                    "position": "Position",
+                    "company": "Company",
+                    "period": "Period",
+                    "description_heading": "Responsibilities and Achievements"
+                }
+            elif selected_lang == 'es':
+                labels = {
+                    "position": "Cargo", # Or "Puesto"
+                    "company": "Empresa",
+                    "period": "Período",
+                    "description_heading": "Responsabilidades y Logros"
+                }
+            else: # Default to Portuguese
+                labels = {
+                    "position": "Cargo",
+                    "company": "Empresa",
+                    "period": "Período",
+                    "description_heading": "Responsabilidades e Realizações"
+                }
+    
+            # Usar a função especializada do template ATS
+            if hasattr(template, 'add_job_experience'):
+                template.add_job_experience(elements, position, company, period, description_content, styles, labels)
+            else:
+                # Fallback caso o template não tenha a função especializada
+                if position:
+                    elements.append(Paragraph(f"<b>{labels['position']}:</b> {position}", styles['bullet'])) # Use localized label
+                
+                if company:
+                     elements.append(Paragraph(f"<b>{labels['company']}:</b> {company}", styles['normal']))
+    
+                if period:
+                    elements.append(Paragraph(f"<b>{labels['period']}:</b> {period}", styles['normal'])) # Use localized label
+                
+                # Fallback description handling (simplified)
+                processed_desc_items = []
+                if isinstance(description_content, str):
+                    processed_desc_items = [s.strip() for s in description_content.split('\\n') if s.strip()]
+                    if not processed_desc_items and description_content.strip():
+                        processed_desc_items = [description_content.strip()]
+                elif isinstance(description_content, list):
+                    processed_desc_items = [str(item).strip() for item in description_content if str(item).strip()]
+    
+                if processed_desc_items:
+                    elements.append(Paragraph(f"<b>{labels['description_heading']}:</b>", styles['normal'])) # Use localized label
+                    for item_text in processed_desc_items:
+                        elements.append(Paragraph(f"- {item_text}", styles['bullet']))
+                    
+                elements.append(Spacer(1, 0.1*inch))
+    
+    # Adicionar palavras-chave extraídas para melhorar a compatibilidade ATS
+    if keywords and hasattr(template, 'add_keywords_section'):
+        # Adicionar palavras-chave do resumo e habilidades técnicas
+        skills_section = None
+        for key in ['habilidadesTecnicas', 'technicalSkills', 'habilidadesTecnicas', 'competencesTechniques']:
+            if key in secoes:
+                skills_section = secoes[key]
+                break
+        
+        if skills_section:
+            # Obter lista de habilidades
+            skills = []
+            for key in ['habilidades', 'skills', 'habilidades', 'competences']:
+                if key in skills_section:
+                    skills = skills_section[key]
+                    break
+            
+            # Adicionar nomes das habilidades à lista de palavras-chave
+            for skill in skills:
+                skill_name = get_field(skill, 'nome', 'name')
+                if skill_name:
+                    keywords.append(skill_name)
+        
+        # Remover duplicatas e ordenar
+        keywords = list(set(keywords))
+        keywords.sort()
+        
+    
+    # Adicionar quebra de página antes das habilidades técnicas
+    template.add_page_break(elements)
+    
+    # Habilidades Técnicas - procurar por várias possíveis chaves
+    skills_section_content = None
+    # Use a set for unique keys and then convert to list if necessary for order, or just iterate the set
+    unique_skill_section_keys = {'habilidadesTecnicas', 'technicalSkills', 'competencesTechniques'}
+    for key in unique_skill_section_keys:
+        if key in secoes:
+            skills_section_content = secoes[key]
+            break
+    
+    if skills_section_content:
+        template.add_section_title(elements, get_section_title(skills_section_content), styles)
+        
+        skill_objects_list = [] # This will hold the list of skill *objects*
+    
+        if isinstance(skills_section_content, dict):
+            # Typical case: skills_section_content is an object like {"titulo": "...", "habilidades": [...]}
+            found_list = False
+            unique_skill_list_keys = {'habilidades', 'skills', 'competencias'}
+            for list_key in unique_skill_list_keys:
+                if list_key in skills_section_content and isinstance(skills_section_content[list_key], list):
+                    skill_objects_list = skills_section_content[list_key]
+                    found_list = True
+                    break
+            if not found_list:
+                # If no list found under standard keys, it might be a single skill object.
+                if 'nombre' in skills_section_content and 'nivel' in skills_section_content:
+                     # Check it's not a container object with a title etc.
+                    if not any(k in skills_section_content for k in ['titulo', 'title'] + list(unique_skill_list_keys)):
+                        skill_objects_list = [skills_section_content] # Treat as a list with one skill
+        elif isinstance(skills_section_content, list):
+            # Case: skills_section_content is directly a list of skill objects
+            skill_objects_list = skills_section_content
+        
+        for skill_item in skill_objects_list:
+            if not isinstance(skill_item, dict):
+                print(f"Aviso (ATS PDF): Item de habilidade não é um dicionário: {skill_item}. Pulando.")
+                continue
+            skill_name = get_field(skill_item, 'nombre', 'name')
+            skill_level_str = get_field(skill_item, 'nivel', 'level') # Get level as string
+            if skill_name and skill_level_str:
+                try:
+                    skill_level = int(skill_level_str) # Convert to int
+                    if hasattr(template, 'add_skill'):
+                        template.add_skill(elements, skill_name, styles, skill_level, lang=selected_lang) # Pass selected_lang
+                    elif hasattr(template, 'add_skill_bar'): 
+                        template.add_skill_bar(elements, skill_name, styles, skill_level)
+                except ValueError:
+                    print(f"Aviso (ATS PDF): Nível de habilidade inválido para '{skill_name}'. Esperado um número, recebido '{skill_level_str}'. Pulando.")
+        
+        elements.append(Spacer(1, 0.1*inch))
+    
+    # Certificações - procurar por várias possíveis chaves
+    certifications_section = None
+    for key in ['certificacoes', 'certifications', 'certificaciones', 'certifications']:
+        if key in secoes:
+            certifications_section = secoes[key]
+            break
+    
+    if certifications_section:
+        template.add_section_title(elements, get_section_title(certifications_section), styles)
+        certifications = get_section_list(certifications_section)
+        
+        for cert in certifications:
+            # Usar texto simples para certificações (sem emojis) para melhor compatibilidade ATS
+            elements.append(Paragraph(cert, styles['normal']))
+        
+        elements.append(Spacer(1, 0.1*inch))
+    
+    # Educação - procurar por várias possíveis chaves
+    education_section = None
+    for key in ['educacao', 'education', 'educacion', 'education']:
+        if key in secoes:
+            education_section = secoes[key]
+            break
+    
+    if education_section:
+        template.add_section_title(elements, get_section_title(education_section), styles)
+        
+        # Obter lista de formações
+        degrees = []
+        for key in ['formacao', 'degrees', 'formacion', 'diplomes']:
+            if key in education_section:
+                degrees = education_section[key]
+                break
+        
+        for degree in degrees:
+            elements.append(Paragraph(degree, styles['normal']))
+        
+        elements.append(Spacer(1, 0.1*inch))
+    
+    # Em Andamento - procurar por várias possíveis chaves
+    in_progress_section = None
+    for key in ['emAndamento', 'inProgress', 'enProgreso', 'enCours']:
+        if key in secoes:
+            in_progress_section = secoes[key]
+            break
+    
+    if in_progress_section:
+        template.add_section_title(elements, get_section_title(in_progress_section), styles)
+        
+        # Obter lista de cursos
+        courses = []
+        for key in ['cursos', 'courses', 'cursos', 'cours']:
+            if key in in_progress_section:
+                courses = in_progress_section[key]
+                break
+        
+        for course in courses:
+            elements.append(Paragraph(course, styles['normal']))
+    
+    template.add_keywords_section(elements, keywords, styles)
+    
+    # Gerar o PDF
+    try:   
+        if os.path.exists(output_filename):
+            try:
+                # Tentar renomear temporariamente o arquivo existente
+                temp_name = output_filename + ".old"
+                if os.path.exists(temp_name):
+                    os.remove(temp_name)
+                os.rename(output_filename, temp_name)
+                
+            # Gerar o novo PDF
+                doc.build(elements)
+                
+                # Se deu certo, remover o arquivo antigo
+                if os.path.exists(temp_name):
+                    os.remove(temp_name)
+                    
+            except Exception as e:
+                # Se falhar em renomear, tentar outro nome de arquivo
+                alternative_filename = os.path.splitext(output_filename)[0] + "_new.pdf"
+                doc = template.create_document(alternative_filename)
+                doc.build(elements)
+                output_filename = alternative_filename
+        else:
+            # Se não existir, simplesmente criar o arquivo
+            doc.build(elements)
+            
+        print(f"Arquivo PDF otimizado para ATS salvo como: {output_filename}")
+        print("\nDicas para aumentar a compatibilidade com ATS:")
+        print("1. Use termos-chave específicos da sua área em seu resumo profissional")
+        print("2. Liste habilidades técnicas relevantes para a vaga desejada")
+        print("3. Mantenha um formato limpo e direto, evitando tabelas complexas")
+        print("4. Certifique-se de incluir datas completas nas experiências (mm/aaaa - mm/aaaa)")
+        
+    except Exception as e:
+        print(f"Erro ao gerar o PDF: {str(e)}")
+        print("Tente fechar o arquivo PDF se ele estiver aberto em outro programa.")
+    return output_filename
+
+
+if __name__ == "__main__":
+    main()
